@@ -57,11 +57,15 @@ Before declaring any phase milestone complete:
 
 ## Git Release & Milestone Runbook
 
+### Commit Authorization Gate
+**Strict Rule**: Never automatically execute `git commit` commands without explicit user authorization in the immediate prompt. Always present the proposed commit command, files, and commit message first so the user can inspect, review, or edit before committing.
+
 When a phase milestone in `Plan/Implementation.md` is completed and verified:
 1. **Pre-Verification**: Run backend tests (`pytest`), frontend checks (`npm run test`, `npm run build`), and verify migrations (`python manage.py makemigrations --check`).
-2. **Commit with Clear Message**:
+2. **Present Commit Instructions**: Present the proposed commit command for the user to review:
    ```bash
    git add .
    git commit -m "feat(phase-X): complete milestone - [description]"
    ```
-3. **Doc Sync**: Ensure `Plan/Implementation.md` reflects all completed checkmarks before finalizing the session.
+3. **Execute Only on User Consent**: Run the commit only when the user explicitly instructs (e.g. "Yes, commit them").
+4. **Doc Sync**: Ensure `Plan/Implementation.md` reflects all completed checkmarks before finalizing the session.
