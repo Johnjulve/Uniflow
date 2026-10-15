@@ -4,6 +4,7 @@ import { DashboardOverview } from '@/app/views/DashboardOverview'
 import { PlaceholderView } from '@/app/views/PlaceholderView'
 import { LoginForm } from '@/modules/auth/LoginForm'
 import { ProtectedRoute } from '@/modules/auth/ProtectedRoute'
+import { CatalogView } from '@/modules/catalog/CatalogView'
 
 export const router = createBrowserRouter([
   {
@@ -24,12 +25,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'catalog',
-        element: (
-          <PlaceholderView
-            title="Product Catalog"
-            description="Manage products, categories, SKU definitions, and pricing."
-          />
-        ),
+        element: <CatalogView />,
       },
       {
         path: 'inventory',
