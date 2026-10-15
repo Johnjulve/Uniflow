@@ -1,0 +1,3 @@
+"""
+Purchasing domain application package.
+"""
