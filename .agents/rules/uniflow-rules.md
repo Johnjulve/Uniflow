@@ -6,6 +6,7 @@
 - **Scope Locking**: If a request drifts outside this project's scope (e.g. into premature CMS, POS, multi-tenancy, Redis, or microservices), stop immediately and confirm before proceeding. Do not silently cross-contaminate project contexts.
 - **Tool Efficiency**: Minimize tool calls and turns. Use tools with high intent to respect rate limits (60 requests/min, 1,000/day). Activate only the skills/tools explicitly needed for the immediate step.
 - **Commit Authorization Gate**: NEVER execute `git commit` automatically unless the user explicitly grants permission in that prompt (e.g. "commit them for me", "Yes, commit this"). Always present the proposed commit command, files, and commit message first so the user can inspect, review, or edit before committing.
+- **File-by-File Atomic Commits**: Commit changes file-by-file with individual, focused commit messages rather than bundling multiple files into a single commit. This ensures granular version control history and makes it safe and trivial to revert any specific file without rolling back adjacent files.
 
 ## Coding Philosophy & Rigor
 - **Simplicity Over Cleverness**: Write simple, direct, readable code over hyper-efficient, library-heavy, or clever solutions. 
