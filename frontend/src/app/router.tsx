@@ -5,6 +5,7 @@ import { PlaceholderView } from '@/app/views/PlaceholderView'
 import { LoginForm } from '@/modules/auth/LoginForm'
 import { ProtectedRoute } from '@/modules/auth/ProtectedRoute'
 import { CatalogView } from '@/modules/catalog/CatalogView'
+import { InventoryView } from '@/modules/inventory/InventoryView'
 
 export const router = createBrowserRouter([
   {
@@ -29,12 +30,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'inventory',
-        element: (
-          <PlaceholderView
-            title="Inventory Operations"
-            description="Track real-time stock balances, warehouse adjustments, and movement ledgers."
-          />
-        ),
+        element: <InventoryView />,
       },
       {
         path: 'purchasing',
