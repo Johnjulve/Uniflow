@@ -44,6 +44,7 @@ THIRD_PARTY_APPS = [
 LOCAL_APPS = [
     "apps.common",
     "apps.accounts",
+    "apps.catalog",
 ]
 
 AUTH_USER_MODEL = "accounts.User"

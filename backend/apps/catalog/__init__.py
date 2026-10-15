@@ -1,0 +1,3 @@
+"""
+Catalog domain application package.
+"""
