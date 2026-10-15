@@ -70,7 +70,7 @@ class PurchaseOrder(UUIDModel, TimeStampedModel):
         default=PurchaseOrderStatus.DRAFT,
         db_index=True,
     )
-    order_date = models.DateField(default=timezone.now)
+    order_date = models.DateField(default=timezone.localdate)
     expected_date = models.DateField(null=True, blank=True)
     notes = models.TextField(blank=True, default="")
     created_by = models.ForeignKey(
