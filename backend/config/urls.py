@@ -15,6 +15,8 @@ urlpatterns = [
     path("api/v1/auth/", include("apps.accounts.urls", namespace="auth")),
     # Catalog endpoints
     path("api/v1/catalog/", include("apps.catalog.urls", namespace="catalog")),
+    # Inventory endpoints
+    path("api/v1/inventory/", include("apps.inventory.urls", namespace="inventory")),
     # OpenAPI 3.0 Documentation
     path("api/v1/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/v1/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
