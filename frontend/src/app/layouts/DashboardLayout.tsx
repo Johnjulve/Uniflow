@@ -3,6 +3,7 @@ import {
   BarChart3,
   Boxes,
   LayoutDashboard,
+  LogOut,
   Package,
   Settings,
   ShoppingCart,
@@ -11,6 +12,8 @@ import {
 } from 'lucide-react'
 import { SyncIndicator } from '@/components/feedback/SyncIndicator'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { useAuth } from '@/modules/auth/useAuth'
 import { cn } from '@/lib/utils'
 
 const navigationItems = [
@@ -24,6 +27,12 @@ const navigationItems = [
 ]
 
 export function DashboardLayout() {
+  const { user, logout } = useAuth()
+
+  const initials = user
+    ? (user.first_name?.[0] || user.username[0] || 'U').toUpperCase()
+    : 'U'
+
   return (
     <div className="flex min-h-screen bg-slate-50 text-slate-900">
       {/* Sidebar Navigation */}
@@ -79,14 +88,28 @@ export function DashboardLayout() {
 
           <div className="flex items-center gap-4">
             <SyncIndicator pendingCount={0} />
-            <div className="flex items-center gap-2 border-l border-slate-200 pl-4">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-700 border border-slate-200">
-                AD
+            <div className="flex items-center gap-3 border-l border-slate-200 pl-4">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700 border border-blue-200">
+                {initials}
               </div>
               <div className="text-xs">
-                <p className="font-semibold text-slate-900">Administrator</p>
-                <p className="text-slate-500">Local Admin</p>
+                <p className="font-semibold text-slate-900 leading-tight">
+                  {user ? `${user.first_name} ${user.last_name}`.trim() || user.username : 'User'}
+                </p>
+                <p className="text-slate-500 font-medium">
+                  {user?.role_display || user?.role || 'Authenticated'}
+                </p>
               </div>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => logout()}
+                className="text-slate-500 hover:text-red-600 ml-1 h-8 w-8 p-0"
+                title="Sign Out"
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
             </div>
           </div>
         </header>

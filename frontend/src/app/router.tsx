@@ -2,11 +2,21 @@ import { createBrowserRouter } from 'react-router-dom'
 import { DashboardLayout } from '@/app/layouts/DashboardLayout'
 import { DashboardOverview } from '@/app/views/DashboardOverview'
 import { PlaceholderView } from '@/app/views/PlaceholderView'
+import { LoginForm } from '@/modules/auth/LoginForm'
+import { ProtectedRoute } from '@/modules/auth/ProtectedRoute'
 
 export const router = createBrowserRouter([
   {
+    path: '/login',
+    element: <LoginForm />,
+  },
+  {
     path: '/',
-    element: <DashboardLayout />,
+    element: (
+      <ProtectedRoute>
+        <DashboardLayout />
+      </ProtectedRoute>
+    ),
     children: [
       {
         index: true,
