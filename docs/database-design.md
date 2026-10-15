@@ -1,5 +1,7 @@
 # UNIFLOW — Database Design & Inventory Ledger Specification
 
+> **Documentation Index**: [Overview (README)](../README.md) | [Architecture](architecture.md) | **Database Design** | [API Contract](api-contract.md) | [Offline Sync](offline-sync.md) | [Deployment Runbook](deployment.md)
+
 ## 1. Overview & Core Philosophy
 Uniflow relies on **PostgreSQL** as its single authoritative datastore. The database schema is engineered with a strict **ledger-first** philosophy:
 
