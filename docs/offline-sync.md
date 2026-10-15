@@ -1,5 +1,7 @@
 # UNIFLOW — Offline-First Storage & Synchronization Protocol
 
+> **Documentation Index**: [Overview (README)](../README.md) | [Architecture](architecture.md) | [Database Design](database-design.md) | [API Contract](api-contract.md) | **Offline Sync** | [Deployment Runbook](deployment.md)
+
 ## 1. Overview & Operating Principles
 
 Offline operation is a mandatory requirement for Uniflow IMS. Businesses operating in areas with unstable local connectivity must be able to continue recording stock adjustments, draft purchase orders, and receiving goods without downtime or data corruption.
