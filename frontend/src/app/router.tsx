@@ -6,6 +6,8 @@ import { LoginForm } from '@/modules/auth/LoginForm'
 import { ProtectedRoute } from '@/modules/auth/ProtectedRoute'
 import { CatalogView } from '@/modules/catalog/CatalogView'
 import { InventoryView } from '@/modules/inventory/InventoryView'
+import { PurchasingView } from '@/modules/purchasing/PurchasingView'
+import { SupplierView } from '@/modules/suppliers/SupplierView'
 
 export const router = createBrowserRouter([
   {
@@ -34,21 +36,11 @@ export const router = createBrowserRouter([
       },
       {
         path: 'purchasing',
-        element: (
-          <PlaceholderView
-            title="Purchasing & Orders"
-            description="Manage purchase orders, supplier fulfillment, and goods received notes."
-          />
-        ),
+        element: <PurchasingView />,
       },
       {
         path: 'suppliers',
-        element: (
-          <PlaceholderView
-            title="Suppliers & Vendors"
-            description="Maintain vendor directories, contact details, and fulfillment lead times."
-          />
-        ),
+        element: <SupplierView />,
       },
       {
         path: 'reports',
