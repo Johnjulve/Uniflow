@@ -1,5 +1,7 @@
 # UNIFLOW — REST API Contract & Interface Specification
 
+> **Documentation Index**: [Overview (README)](../README.md) | [Architecture](architecture.md) | [Database Design](database-design.md) | **API Contract** | [Offline Sync](offline-sync.md) | [Deployment Runbook](deployment.md)
+
 ## 1. Overview & Conventions
 This document defines the REST API contract for Uniflow IMS across the Django REST Framework (DRF) backend and the React TypeScript frontend.
 
