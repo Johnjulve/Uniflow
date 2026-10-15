@@ -14,6 +14,16 @@
 - **Defensive Reliability**: Handle failure and edge cases explicitly. Do not use silent fallbacks. In inventory mutations, always wrap in `transaction.atomic()` with `select_for_update()` row locks and reject negative balances safely.
 - **Style Reusability**: Centralize global UI/UX variables (colors, spacing, typography) in a single, shared style dictionary / Tailwind design tokens. Check for existing components in `components/ui/` before writing a new one.
 
+## Frontend Component Modularity & Unified Design System
+- **Strict Directory Boundaries**: Structure frontend strictly according to `Plan/Master_plan.md`:
+  - `src/components/ui/`: Unified design primitives (Button, Input, Card, Badge, Dialog, Table, Dropdown).
+  - `src/components/forms/`, `src/components/tables/`, `src/components/feedback/`: Reusable specialized structural components.
+  - `src/modules/<domain>/`: Domain-specific views and containers (auth, dashboard, catalog, inventory, suppliers, purchasing, reports, settings).
+  - `src/services/` & `src/offline/`: API transport, outbox queue, and sync engine. Never couple data-fetching or Dexie calls directly inside visual presentation components.
+- **Zero One-Off Styled Elements**: All views must use the unified primitives from `src/components/ui/` (e.g. `<Button>`, `<Card>`, `<Input>`). Never create ad-hoc raw `<button className="...">` or `<input className="...">` with custom styles inside domain views.
+- **Composition Over Configuration**: Build composable primitives (e.g. `<Card><CardHeader><CardTitle>...</CardTitle></CardHeader><CardContent>...</CardContent></Card>`) using `cn()` from `@/lib/utils` rather than monolithic prop-heavy components.
+- **Container vs. Presentation Separation**: In domain modules, separate data orchestration/mutations (containers/hooks) from pure visual rendering components so components are easy to test and modify.
+
 ## Absolute Scope Discipline
 - **Minimum Viable Change**: Write the absolute minimum code required to solve the task at hand. **Never refactor adjacent code, add unrequested features, or anticipate future requirements (Strict YAGNI).**
 - **Modification Limits**: Bound multi-file changes to a maximum of 2–5 files per session. If a task requires more, pause execution and propose explicit stages.
