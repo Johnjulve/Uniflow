@@ -7,6 +7,10 @@ Plan/
 .env.*.local
 *.env
 
+# Database
+*.sqlite3
+*.db
+
 # Python
 __pycache__/
 *.py[cod]
