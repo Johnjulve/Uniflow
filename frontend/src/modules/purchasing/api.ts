@@ -44,6 +44,22 @@ export async function createSupplier(payload: SupplierCreatePayload): Promise<Su
   return res.json()
 }
 
+export async function updateSupplier(
+  id: string,
+  payload: Partial<SupplierCreatePayload>
+): Promise<Supplier> {
+  const res = await fetch(`/api/v1/suppliers/${id}/`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error?.message || err.detail || 'Failed to update supplier')
+  }
+  return res.json()
+}
+
 export async function fetchPurchaseOrders(params?: {
   search?: string
   status?: string
