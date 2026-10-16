@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import {
   BarChart3,
@@ -10,6 +11,7 @@ import {
   Truck,
   Warehouse,
 } from 'lucide-react'
+import { OutboxModal } from '@/components/feedback/OutboxModal'
 import { SyncIndicator } from '@/components/feedback/SyncIndicator'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -28,6 +30,7 @@ const navigationItems = [
 
 export function DashboardLayout() {
   const { user, logout } = useAuth()
+  const [isOutboxOpen, setIsOutboxOpen] = useState(false)
 
   const initials = user
     ? (user.first_name?.[0] || user.username[0] || 'U').toUpperCase()
@@ -87,7 +90,7 @@ export function DashboardLayout() {
           </div>
 
           <div className="flex items-center gap-4">
-            <SyncIndicator pendingCount={0} />
+            <SyncIndicator onClick={() => setIsOutboxOpen(true)} />
             <div className="flex items-center gap-3 border-l border-slate-200 pl-4">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700 border border-blue-200">
                 {initials}
@@ -119,6 +122,9 @@ export function DashboardLayout() {
           <Outlet />
         </main>
       </div>
+
+      {/* Outbox & Sync Inspector Modal */}
+      <OutboxModal isOpen={isOutboxOpen} onClose={() => setIsOutboxOpen(false)} />
     </div>
   )
 }
