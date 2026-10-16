@@ -25,6 +25,13 @@
 - **Composition Over Configuration**: Build composable primitives (e.g. `<Card><CardHeader><CardTitle>...</CardTitle></CardHeader><CardContent>...</CardContent></Card>`) using `cn()` from `@/lib/utils` rather than monolithic prop-heavy components.
 - **Container vs. Presentation Separation**: In domain modules, separate data orchestration/mutations (containers/hooks) from pure visual rendering components so components are easy to test and modify.
 
+## Honest Feedback & In-Progress Feature Handling (Anti-Mocking)
+- **Zero Silent Mocks**: Never display static dummy statistics (e.g. hardcoded `0`s, fake totals) or inert non-functioning buttons to mask incomplete features. All metrics must be bound to real queries or explicitly reflect their pending/loading state.
+- **Allow and Surface Errors**: Allow backend and integration errors to surface during development so missing or failing endpoints are immediately obvious rather than hidden behind silent fallbacks.
+- **Noticeable In-Progress Feedback**: If a button, action, or view references a workflow that is still under active development:
+  - Provide an explicit interactive notice (e.g., a modal popup, toast alert, or inline badge) stating: *"Feature Under Construction: [Feature Name] is currently scheduled for [Phase X]."*
+  - Never leave clicks silent or inert without immediate visual feedback.
+
 ## Absolute Scope Discipline
 - **Minimum Viable Change**: Write the absolute minimum code required to solve the task at hand. **Never refactor adjacent code, add unrequested features, or anticipate future requirements (Strict YAGNI).**
 - **Modification Limits**: Bound multi-file changes to a maximum of 2–5 files per session. If a task requires more, pause execution and propose explicit stages.
