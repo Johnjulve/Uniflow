@@ -61,6 +61,34 @@ export async function createProduct(payload: {
   return res.json()
 }
 
+export async function updateProduct(
+  id: string,
+  payload: {
+    sku?: string
+    name?: string
+    barcode?: string
+    description?: string
+    category?: string
+    unit_of_measure?: string
+    purchase_cost?: string
+    selling_price?: string
+    reorder_threshold?: string
+  }
+): Promise<Product> {
+  const res = await fetch(`/api/v1/catalog/products/${id}/`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  })
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}))
+    const msg = errorData.detail || errorData.error?.message || 'Failed to update product'
+    throw new Error(msg)
+  }
+  return res.json()
+}
+
 export async function archiveProduct(id: string): Promise<Product> {
   const res = await fetch(`/api/v1/catalog/products/${id}/archive/`, {
     method: 'POST',
