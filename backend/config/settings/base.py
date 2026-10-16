@@ -2,6 +2,7 @@
 Base settings for Uniflow backend.
 Shared across all environments (local, testing, production).
 """
+
 import os
 from pathlib import Path
 
@@ -19,7 +20,7 @@ DEBUG = os.getenv("DJANGO_DEBUG", "False").lower() in ("true", "1", "t", "yes")
 
 ALLOWED_HOSTS = [
     host.strip()
-    for host in os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+    for host in os.getenv("DJANGO_ALLOWED_HOSTS", "localhost, 127.0.0.1").split(",")
     if host.strip()
 ]
 
@@ -127,4 +128,9 @@ SPECTACULAR_SETTINGS = {
 }
 
 # Business Inventory Policy
-ALLOW_NEGATIVE_STOCK = os.getenv("UNIFLOW_ALLOW_NEGATIVE_STOCK", "False").lower() in ("true", "1", "t", "yes")
+ALLOW_NEGATIVE_STOCK = os.getenv("UNIFLOW_ALLOW_NEGATIVE_STOCK", "False").lower() in (
+    "true",
+    "1",
+    "t",
+    "yes",
+)
