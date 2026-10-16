@@ -120,3 +120,16 @@ Every interactive view must handle the four core UI states:
 2. **Empty State**: Clear, actionable messaging with a prominent call-to-action button (e.g. "No products found. Add your first product").
 3. **Error State**: Non-blocking banner with an explicit retry action and exact error messages.
 4. **Offline / Sync State**: Display the `<SyncIndicator />` badge showing whether data is server-confirmed, cached, or queued in the outbox.
+
+---
+
+## 5. In-Progress Features & Anti-Mocking Standards
+
+Never hide unfinished work behind silent mock numbers or non-functional buttons:
+1. **Surface Errors Loudly**: Allow network, contract, and query errors to be visible during development and testing so missing backend endpoints or contract mismatches are caught immediately.
+2. **Active In-Progress Feedback**: If a button, action, or card targets a workflow that is not yet ready:
+   - Trigger an informative popup / modal dialog (or toast notification): e.g. `"This feature is currently under active development as part of Phase 2."`
+   - Include an explicit status badge (e.g. `<Badge variant="warning">Coming in Phase 2</Badge>`).
+   - Never leave clicks dead or inert without clear, immediate user feedback.
+3. **Live Query Binding**: Always bind metric cards and statistics directly to live TanStack Queries or Dexie caches. If the data is empty, display an honest zero with an empty explanation; if loading, show a spinner/skeleton; if failing, display an error indicator with retry capability.
+
