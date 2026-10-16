@@ -38,15 +38,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const profile: UserProfile = await response.json()
           setUser(profile)
           localStorage.setItem(USER_KEY, JSON.stringify(profile))
-        } else {
-          // Token expired or invalidated
+        } else if (response.status === 401 || response.status === 403) {
+          // Token expired or explicitly rejected by Django
           localStorage.removeItem(TOKEN_KEY)
           localStorage.removeItem(USER_KEY)
           setToken(null)
           setUser(null)
+        } else {
+          // Server offline or proxy 502/504 gateway timeout: retain offline cached session
         }
       } catch {
-        // Network offline or error - retain cached user if present
+        // Network offline or fetch error - retain cached user
       } finally {
         setIsLoading(false)
       }
