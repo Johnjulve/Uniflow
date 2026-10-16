@@ -2,12 +2,13 @@ import React, { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import type { Category } from './types'
+import type { Category, Product } from './types'
 import { AlertCircle, X } from 'lucide-react'
 
 interface ProductModalProps {
   isOpen: boolean
   onClose: () => void
+  product?: Product | null
   onSave: (payload: {
     sku: string
     name: string
@@ -22,16 +23,30 @@ interface ProductModalProps {
   categories: Category[]
 }
 
-export function ProductModal({ isOpen, onClose, onSave, categories }: ProductModalProps) {
-  const [sku, setSku] = useState('')
-  const [name, setName] = useState('')
-  const [barcode, setBarcode] = useState('')
-  const [description, setDescription] = useState('')
-  const [categoryId, setCategoryId] = useState(categories[0]?.id || '')
-  const [unitOfMeasure, setUnitOfMeasure] = useState('unit')
-  const [purchaseCost, setPurchaseCost] = useState('0.00')
-  const [sellingPrice, setSellingPrice] = useState('0.00')
-  const [reorderThreshold, setReorderThreshold] = useState('0')
+export function ProductModal({
+  isOpen,
+  onClose,
+  product,
+  onSave,
+  categories,
+}: ProductModalProps) {
+  const isEdit = Boolean(product)
+
+  const [sku, setSku] = useState(product?.sku || '')
+  const [name, setName] = useState(product?.name || '')
+  const [barcode, setBarcode] = useState(product?.barcode || '')
+  const [description, setDescription] = useState(product?.description || '')
+  const [categoryId, setCategoryId] = useState(product?.category || categories[0]?.id || '')
+  const [unitOfMeasure, setUnitOfMeasure] = useState(product?.unit_of_measure || 'unit')
+  const [purchaseCost, setPurchaseCost] = useState(
+    product ? parseFloat(product.purchase_cost || '0').toFixed(2) : '0.00'
+  )
+  const [sellingPrice, setSellingPrice] = useState(
+    product ? parseFloat(product.selling_price || '0').toFixed(2) : '0.00'
+  )
+  const [reorderThreshold, setReorderThreshold] = useState(
+    product ? parseFloat(product.reorder_threshold || '0').toString() : '0'
+  )
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -71,7 +86,9 @@ export function ProductModal({ isOpen, onClose, onSave, categories }: ProductMod
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
       <Card className="w-full max-w-lg bg-white shadow-xl">
         <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100 pb-4">
-          <CardTitle className="text-lg">Add New Product</CardTitle>
+          <CardTitle className="text-lg">
+            {isEdit ? 'Edit Product' : 'Add New Product'}
+          </CardTitle>
           <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0">
             <X className="h-4 w-4" />
           </Button>
@@ -223,7 +240,7 @@ export function ProductModal({ isOpen, onClose, onSave, categories }: ProductMod
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Saving...' : 'Create Product'}
+              {isSubmitting ? 'Saving...' : isEdit ? 'Update Product' : 'Create Product'}
             </Button>
           </CardFooter>
         </form>
