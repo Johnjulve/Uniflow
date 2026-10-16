@@ -1,20 +1,32 @@
 import React, { useState } from 'react'
-import { Plus, Search, Truck, Mail, Phone, MapPin, CheckCircle2, XCircle, X } from 'lucide-react'
+import {
+  CheckCircle2,
+  Mail,
+  MapPin,
+  Pencil,
+  Phone,
+  Plus,
+  Search,
+  Truck,
+  X,
+  XCircle,
+} from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { createSupplier, fetchSuppliers } from '@/modules/purchasing/api'
-import type { SupplierCreatePayload } from '@/modules/purchasing/types'
+import { Input } from '@/components/ui/input'
+import { createSupplier, fetchSuppliers, updateSupplier } from '@/modules/purchasing/api'
+import type { Supplier, SupplierCreatePayload } from '@/modules/purchasing/types'
 
 export function SupplierView() {
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [activeFilter, setActiveFilter] = useState<'all' | 'true' | 'false'>('all')
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null)
 
-  // New Supplier Form State
+  // Supplier Form State
   const [name, setName] = useState('')
   const [contactName, setContactName] = useState('')
   const [email, setEmail] = useState('')
@@ -39,19 +51,55 @@ export function SupplierView() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['suppliers'] })
       setIsModalOpen(false)
-      setName('')
-      setContactName('')
-      setEmail('')
-      setPhone('')
-      setAddress('')
-      setIsActive(true)
+      resetForm()
     },
     onError: (err: Error) => {
       setFormError(err.message || 'Failed to create supplier')
     },
   })
 
-  const handleCreateSupplier = (e: React.FormEvent) => {
+  const updateMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: Partial<SupplierCreatePayload> }) =>
+      updateSupplier(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['suppliers'] })
+      setIsModalOpen(false)
+      resetForm()
+    },
+    onError: (err: Error) => {
+      setFormError(err.message || 'Failed to update supplier')
+    },
+  })
+
+  const resetForm = () => {
+    setName('')
+    setContactName('')
+    setEmail('')
+    setPhone('')
+    setAddress('')
+    setIsActive(true)
+    setEditingSupplier(null)
+    setFormError(null)
+  }
+
+  const openCreateModal = () => {
+    resetForm()
+    setIsModalOpen(true)
+  }
+
+  const openEditModal = (s: Supplier) => {
+    setEditingSupplier(s)
+    setName(s.name)
+    setContactName(s.contact_name || '')
+    setEmail(s.email || '')
+    setPhone(s.phone || '')
+    setAddress(s.address || '')
+    setIsActive(s.is_active)
+    setFormError(null)
+    setIsModalOpen(true)
+  }
+
+  const handleSaveSupplier = (e: React.FormEvent) => {
     e.preventDefault()
     setFormError(null)
 
@@ -68,8 +116,15 @@ export function SupplierView() {
       address: address.trim(),
       is_active: isActive,
     }
-    createMutation.mutate(payload)
+
+    if (editingSupplier) {
+      updateMutation.mutate({ id: editingSupplier.id, payload })
+    } else {
+      createMutation.mutate(payload)
+    }
   }
+
+  const isSaving = createMutation.isPending || updateMutation.isPending
 
   return (
     <div className="space-y-6">
@@ -81,7 +136,7 @@ export function SupplierView() {
             Maintain authorized supplier registry, contacts, and procurement availability.
           </p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)} className="gap-2">
+        <Button onClick={openCreateModal} className="gap-2">
           <Plus className="h-4 w-4" />
           Add Supplier
         </Button>
@@ -129,22 +184,25 @@ export function SupplierView() {
                 <th className="px-6 py-3">Email & Phone</th>
                 <th className="px-6 py-3">Status</th>
                 <th className="px-6 py-3">Address</th>
+                <th className="px-6 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="py-8 text-center text-slate-500">
+                  <td colSpan={6} className="py-8 text-center text-slate-500">
                     Loading suppliers...
                   </td>
                 </tr>
               ) : suppliers.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-12 text-center">
+                  <td colSpan={6} className="py-12 text-center">
                     <Truck className="mx-auto h-8 w-8 text-slate-400 mb-2" />
                     <p className="text-sm font-semibold text-slate-900">No suppliers found</p>
                     <p className="text-xs text-slate-500 mt-1">
-                      {search ? 'Try clearing your search query.' : 'Register your first supplier to begin creating purchase orders.'}
+                      {search
+                        ? 'Try clearing your search query.'
+                        : 'Register your first supplier to begin creating purchase orders.'}
                     </p>
                   </td>
                 </tr>
@@ -171,11 +229,16 @@ export function SupplierView() {
                           <span>{s.phone}</span>
                         </div>
                       )}
-                      {!s.email && !s.phone && <span className="text-slate-400 italic">No contact details</span>}
+                      {!s.email && !s.phone && (
+                        <span className="text-slate-400 italic">No contact details</span>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       {s.is_active ? (
-                        <Badge variant="outline" className="gap-1 border-emerald-300 text-emerald-700 bg-emerald-50">
+                        <Badge
+                          variant="outline"
+                          className="gap-1 border-emerald-300 text-emerald-700 bg-emerald-50"
+                        >
                           <CheckCircle2 className="h-3 w-3" />
                           Active
                         </Badge>
@@ -196,6 +259,17 @@ export function SupplierView() {
                         <span className="text-slate-400 italic">No address</span>
                       )}
                     </td>
+                    <td className="px-6 py-4 text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-slate-600 hover:text-blue-700 gap-1 h-8"
+                        onClick={() => openEditModal(s)}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                        <span>Edit</span>
+                      </Button>
+                    </td>
                   </tr>
                 ))
               )}
@@ -204,22 +278,27 @@ export function SupplierView() {
         </div>
       </Card>
 
-      {/* Add Supplier Modal */}
+      {/* Add / Edit Supplier Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-xs">
           <Card className="w-full max-w-lg shadow-xl">
             <CardHeader className="flex flex-row items-center justify-between pb-3 border-b border-slate-100">
-              <CardTitle className="text-lg font-bold text-slate-900">Add New Supplier</CardTitle>
+              <CardTitle className="text-lg font-bold text-slate-900">
+                {editingSupplier ? 'Edit Supplier' : 'Add New Supplier'}
+              </CardTitle>
               <Button
                 variant="ghost"
                 size="sm"
                 className="h-8 w-8 p-0 text-slate-400 hover:text-slate-600"
-                onClick={() => setIsModalOpen(false)}
+                onClick={() => {
+                  setIsModalOpen(false)
+                  resetForm()
+                }}
               >
                 <X className="h-4 w-4" />
               </Button>
             </CardHeader>
-            <form onSubmit={handleCreateSupplier}>
+            <form onSubmit={handleSaveSupplier}>
               <CardContent className="space-y-4 pt-4">
                 {formError && (
                   <div className="rounded-md bg-rose-50 p-3 text-xs font-medium text-rose-700">
@@ -288,7 +367,10 @@ export function SupplierView() {
                     onChange={(e) => setIsActive(e.target.checked)}
                     className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                   />
-                  <label htmlFor="is_active_checkbox" className="text-xs font-medium text-slate-700 cursor-pointer">
+                  <label
+                    htmlFor="is_active_checkbox"
+                    className="text-xs font-medium text-slate-700 cursor-pointer"
+                  >
                     Active vendor (available for purchase orders)
                   </label>
                 </div>
@@ -297,13 +379,20 @@ export function SupplierView() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setIsModalOpen(false)}
-                  disabled={createMutation.isPending}
+                  onClick={() => {
+                    setIsModalOpen(false)
+                    resetForm()
+                  }}
+                  disabled={isSaving}
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={createMutation.isPending}>
-                  {createMutation.isPending ? 'Saving...' : 'Save Supplier'}
+                <Button type="submit" disabled={isSaving}>
+                  {isSaving
+                    ? 'Saving...'
+                    : editingSupplier
+                      ? 'Update Supplier'
+                      : 'Save Supplier'}
                 </Button>
               </CardFooter>
             </form>
