@@ -28,14 +28,32 @@ export function useSync() {
     }
   }, [])
 
+  const checkHealth = useCallback(async () => {
+    if (!navigator.onLine) {
+      setIsOnline(false)
+      return false
+    }
+    try {
+      const res = await fetch('/api/v1/health/', { method: 'GET', cache: 'no-store' })
+      const healthy = res.ok
+      setIsOnline(healthy)
+      return healthy
+    } catch {
+      setIsOnline(false)
+      return false
+    }
+  }, [])
+
   const syncNow = useCallback(async () => {
     if (!navigator.onLine || isSyncing) return
     setIsSyncing(true)
     try {
       await SyncService.pushOutbox()
       await SyncService.pullDelta()
+      setIsOnline(true)
     } catch (err) {
       console.warn('Sync attempt failed:', err)
+      setIsOnline(false)
     } finally {
       setIsSyncing(false)
       await refreshCounts()
@@ -43,9 +61,11 @@ export function useSync() {
   }, [isSyncing, refreshCounts])
 
   useEffect(() => {
-    const handleOnline = () => {
-      setIsOnline(true)
-      void syncNow()
+    const handleOnline = async () => {
+      const healthy = await checkHealth()
+      if (healthy) {
+        void syncNow()
+      }
     }
     const handleOffline = () => {
       setIsOnline(false)
@@ -54,15 +74,16 @@ export function useSync() {
     window.addEventListener('online', handleOnline)
     window.addEventListener('offline', handleOffline)
 
-    // Initial counts
-    const initCounts = async () => {
-      await refreshCounts()
+    // Initial check & counts
+    const init = async () => {
+      await Promise.all([refreshCounts(), checkHealth()])
     }
-    void initCounts()
+    void init()
 
-    // Periodic count refresh every 5 seconds
+    // Periodic count & health refresh every 5 seconds
     const interval = setInterval(() => {
       void refreshCounts()
+      void checkHealth()
     }, 5000)
 
     return () => {
@@ -70,7 +91,7 @@ export function useSync() {
       window.removeEventListener('offline', handleOffline)
       clearInterval(interval)
     }
-  }, [syncNow, refreshCounts])
+  }, [syncNow, refreshCounts, checkHealth])
 
   const enqueue = useCallback(
     async (type: OperationType, payload: Record<string, unknown>): Promise<OutboxOperation> => {
