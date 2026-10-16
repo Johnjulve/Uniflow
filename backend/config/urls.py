@@ -5,12 +5,10 @@ from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
-from apps.common.views import HealthCheckView
-
 urlpatterns = [
     path("admin/", admin.site.urls),
-    # System endpoints
-    path("api/v1/health/", HealthCheckView.as_view(), name="health-check"),
+    # Common & sync endpoints (health, sync/push, sync/pull)
+    path("api/v1/", include("apps.common.urls", namespace="common")),
     # Authentication endpoints
     path("api/v1/auth/", include("apps.accounts.urls", namespace="auth")),
     # Catalog endpoints
