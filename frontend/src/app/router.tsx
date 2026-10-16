@@ -7,6 +7,7 @@ import { ProtectedRoute } from '@/modules/auth/ProtectedRoute'
 import { CatalogView } from '@/modules/catalog/CatalogView'
 import { InventoryView } from '@/modules/inventory/InventoryView'
 import { PurchasingView } from '@/modules/purchasing/PurchasingView'
+import { ReportsView } from '@/modules/reports/ReportsView'
 import { SupplierView } from '@/modules/suppliers/SupplierView'
 
 export const router = createBrowserRouter([
@@ -44,12 +45,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'reports',
-        element: (
-          <PlaceholderView
-            title="Reports & Analytics"
-            description="Inventory turnover, valuation summaries, and discrepancy audits."
-          />
-        ),
+        element: <ReportsView />,
       },
       {
         path: 'settings',
