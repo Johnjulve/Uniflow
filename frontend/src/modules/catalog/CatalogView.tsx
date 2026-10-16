@@ -1,12 +1,20 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Search, Archive, ArchiveRestore, Package } from 'lucide-react'
+import { Plus, Search, Archive, ArchiveRestore, Package, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/modules/auth/useAuth'
-import { fetchProducts, fetchCategories, createProduct, archiveProduct, unarchiveProduct } from './api'
+import type { Product } from './types'
+import {
+  fetchProducts,
+  fetchCategories,
+  createProduct,
+  updateProduct,
+  archiveProduct,
+  unarchiveProduct,
+} from './api'
 import { ProductModal } from './ProductModal'
 
 export function CatalogView() {
@@ -18,6 +26,7 @@ export function CatalogView() {
   const [includeArchived, setIncludeArchived] = useState(false)
   const [page, setPage] = useState(1)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null)
 
   const canManage = user?.can_manage_stock || user?.role === 'ADMIN' || user?.role === 'MANAGER'
 
@@ -45,6 +54,18 @@ export function CatalogView() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['catalog', 'products'] })
       queryClient.invalidateQueries({ queryKey: ['catalog', 'categories'] })
+      setIsModalOpen(false)
+    },
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: Parameters<typeof updateProduct>[1] }) =>
+      updateProduct(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['catalog', 'products'] })
+      queryClient.invalidateQueries({ queryKey: ['catalog', 'categories'] })
+      setEditingProduct(null)
+      setIsModalOpen(false)
     },
   })
 
@@ -77,7 +98,13 @@ export function CatalogView() {
         </div>
 
         {canManage && (
-          <Button onClick={() => setIsModalOpen(true)} className="gap-2">
+          <Button
+            onClick={() => {
+              setEditingProduct(null)
+              setIsModalOpen(true)
+            }}
+            className="gap-2"
+          >
             <Plus className="h-4 w-4" />
             <span>Add Product</span>
           </Button>
@@ -204,29 +231,43 @@ export function CatalogView() {
                       </td>
                       {canManage && (
                         <td className="px-6 py-4 text-right">
-                          {p.is_archived ? (
+                          <div className="flex items-center justify-end gap-1">
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="text-blue-600 hover:text-blue-800 gap-1"
-                              onClick={() => unarchiveMutation.mutate(p.id)}
-                              disabled={unarchiveMutation.isPending}
+                              className="text-slate-600 hover:text-blue-700 gap-1 h-8"
+                              onClick={() => {
+                                setEditingProduct(p)
+                                setIsModalOpen(true)
+                              }}
                             >
-                              <ArchiveRestore className="h-3.5 w-3.5" />
-                              <span>Restore</span>
+                              <Pencil className="h-3.5 w-3.5" />
+                              <span>Edit</span>
                             </Button>
-                          ) : (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-slate-500 hover:text-amber-700 gap-1"
-                              onClick={() => archiveMutation.mutate(p.id)}
-                              disabled={archiveMutation.isPending}
-                            >
-                              <Archive className="h-3.5 w-3.5" />
-                              <span>Archive</span>
-                            </Button>
-                          )}
+                            {p.is_archived ? (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-blue-600 hover:text-blue-800 gap-1 h-8"
+                                onClick={() => unarchiveMutation.mutate(p.id)}
+                                disabled={unarchiveMutation.isPending}
+                              >
+                                <ArchiveRestore className="h-3.5 w-3.5" />
+                                <span>Restore</span>
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-slate-500 hover:text-amber-700 gap-1 h-8"
+                                onClick={() => archiveMutation.mutate(p.id)}
+                                disabled={archiveMutation.isPending}
+                              >
+                                <Archive className="h-3.5 w-3.5" />
+                                <span>Archive</span>
+                              </Button>
+                            )}
+                          </div>
                         </td>
                       )}
                     </tr>
@@ -265,13 +306,22 @@ export function CatalogView() {
         </CardContent>
       </Card>
 
-      {/* Creation Modal */}
+      {/* Creation / Edit Modal */}
       {isModalOpen && (
         <ProductModal
+          key={editingProduct ? editingProduct.id : 'new'}
           isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
+          product={editingProduct}
+          onClose={() => {
+            setIsModalOpen(false)
+            setEditingProduct(null)
+          }}
           onSave={async (payload) => {
-            await createMutation.mutateAsync(payload)
+            if (editingProduct) {
+              await updateMutation.mutateAsync({ id: editingProduct.id, payload })
+            } else {
+              await createMutation.mutateAsync(payload)
+            }
           }}
           categories={categories}
         />
