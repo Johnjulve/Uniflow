@@ -1,6 +1,7 @@
 """
 Serializers for inventory balances, movements, locations, and adjustments.
 """
+
 from decimal import Decimal
 
 from rest_framework import serializers
@@ -13,6 +14,7 @@ class LocationSerializer(serializers.ModelSerializer):
     """
     Serializer for storage location management.
     """
+
     class Meta:
         model = Location
         fields = [
@@ -42,8 +44,10 @@ class StockBalanceSerializer(serializers.ModelSerializer):
     """
     Projected stock balance serializer with product and location metadata.
     """
+
     product_sku = serializers.ReadOnlyField(source="product.sku")
     product_name = serializers.ReadOnlyField(source="product.name")
+    product_is_active = serializers.ReadOnlyField(source="product.is_active")
     category_name = serializers.ReadOnlyField(source="product.category.name", default=None)
     reorder_threshold = serializers.ReadOnlyField(source="product.reorder_threshold")
     unit_of_measure = serializers.ReadOnlyField(source="product.unit_of_measure")
@@ -58,6 +62,7 @@ class StockBalanceSerializer(serializers.ModelSerializer):
             "product",
             "product_sku",
             "product_name",
+            "product_is_active",
             "category_name",
             "unit_of_measure",
             "location",
@@ -81,11 +86,14 @@ class StockMovementSerializer(serializers.ModelSerializer):
     """
     Immutable stock movement ledger serializer.
     """
+
     product_sku = serializers.ReadOnlyField(source="product.sku")
     product_name = serializers.ReadOnlyField(source="product.name")
     location_code = serializers.ReadOnlyField(source="location.code")
     location_name = serializers.ReadOnlyField(source="location.name")
-    movement_type_display = serializers.CharField(source="get_movement_type_display", read_only=True)
+    movement_type_display = serializers.CharField(
+        source="get_movement_type_display", read_only=True
+    )
     actor_name = serializers.ReadOnlyField(source="actor.username")
 
     class Meta:
@@ -116,9 +124,14 @@ class StockAdjustmentRequestSerializer(serializers.Serializer):
     """
     Payload for physical cycle count stock adjustments.
     """
-    product = serializers.PrimaryKeyRelatedField(queryset=Product.objects.filter(archived_at__isnull=True))
+
+    product = serializers.PrimaryKeyRelatedField(
+        queryset=Product.objects.filter(archived_at__isnull=True)
+    )
     location = serializers.PrimaryKeyRelatedField(queryset=Location.objects.filter(is_active=True))
-    counted_quantity = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0.00"))
+    counted_quantity = serializers.DecimalField(
+        max_digits=12, decimal_places=2, min_value=Decimal("0.00")
+    )
     reason = serializers.CharField(required=True, max_length=255, trim_whitespace=True)
 
 
@@ -126,5 +139,6 @@ class StockAdjustmentResponseSerializer(serializers.Serializer):
     """
     Response returned after recording a cycle count adjustment.
     """
+
     movement = StockMovementSerializer()
     balance = StockBalanceSerializer()
