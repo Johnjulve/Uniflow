@@ -10,6 +10,9 @@ Plan/
 # Database
 *.sqlite3
 *.db
+*.dump
+*.bak
+backups/
 
 # Python
 __pycache__/
