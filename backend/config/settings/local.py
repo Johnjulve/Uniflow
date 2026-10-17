@@ -32,6 +32,9 @@ else:
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
             "NAME": BASE_DIR / "dev.sqlite3",  # noqa: F405
+            "OPTIONS": {
+                "timeout": 20,
+            },
         }
     }
 
