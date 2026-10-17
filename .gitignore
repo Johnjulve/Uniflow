@@ -24,6 +24,7 @@ ENV/
 build/
 develop-eggs/
 dist/
+staticfiles/
 downloads/
 eggs/
 .eggs/
