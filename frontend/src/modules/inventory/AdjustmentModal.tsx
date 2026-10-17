@@ -11,6 +11,13 @@ interface AdjustmentModalProps {
   onSave: (payload: StockAdjustmentPayload) => Promise<void>
   selectedBalance: StockBalance | null
   locations: Location[]
+  availableProducts?: Array<{
+    id: string
+    sku: string
+    name: string
+    unit_of_measure: string
+  }>
+  existingBalances?: StockBalance[]
 }
 
 export function AdjustmentModal({
@@ -19,22 +26,56 @@ export function AdjustmentModal({
   onSave,
   selectedBalance,
   locations,
+  availableProducts = [],
+  existingBalances = [],
 }: AdjustmentModalProps) {
-  const [countedQty, setCountedQty] = useState(selectedBalance?.current_quantity || '0.00')
-  const [reason, setReason] = useState('')
+  const [selectedProductId, setSelectedProductId] = useState(
+    selectedBalance?.product || availableProducts[0]?.id || ''
+  )
   const [locationId, setLocationId] = useState(selectedBalance?.location || locations[0]?.id || '')
+
+  // Find active product and balance
+  const activeProduct = selectedBalance
+    ? {
+        id: selectedBalance.product,
+        sku: selectedBalance.product_sku,
+        name: selectedBalance.product_name,
+        unit_of_measure: selectedBalance.unit_of_measure,
+      }
+    : availableProducts.find((p) => p.id === selectedProductId) || availableProducts[0]
+
+  const matchedBalance = selectedBalance
+    ? selectedBalance
+    : existingBalances.find(
+        (b) => b.product === selectedProductId && b.location === locationId
+      )
+
+  const currentVal = matchedBalance ? parseFloat(matchedBalance.current_quantity) || 0 : 0
+  const currentUnit = activeProduct?.unit_of_measure || 'units'
+
+  const [countedQty, setCountedQty] = useState(
+    selectedBalance?.current_quantity || (matchedBalance ? matchedBalance.current_quantity : '0.00')
+  )
+  const [reason, setReason] = useState(
+    currentVal === 0 ? 'Initial opening inventory balance' : ''
+  )
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  if (!isOpen || !selectedBalance) return null
+  if (!isOpen) return null
 
-  const currentVal = parseFloat(selectedBalance.current_quantity) || 0
   const countedVal = parseFloat(countedQty) || 0
   const delta = countedVal - currentVal
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+
+    const targetProductId = selectedBalance ? selectedBalance.product : selectedProductId
+    if (!targetProductId) {
+      setError('Please select a product from the catalog.')
+      return
+    }
 
     if (delta === 0) {
       setError('Counted quantity equals current balance. No adjustment required.')
@@ -49,7 +90,7 @@ export function AdjustmentModal({
     setIsSubmitting(true)
     try {
       await onSave({
-        product: selectedBalance.product,
+        product: targetProductId,
         location: locationId,
         counted_quantity: countedQty,
         reason: reason.trim(),
@@ -71,8 +112,14 @@ export function AdjustmentModal({
               <Scale className="h-4 w-4" />
             </div>
             <div>
-              <CardTitle className="text-lg">Adjust Stock Level</CardTitle>
-              <p className="text-xs text-slate-500 font-mono mt-0.5">{selectedBalance.product_sku}</p>
+              <CardTitle className="text-lg">
+                {selectedBalance ? 'Adjust Stock Level' : 'Record Stock / Opening Count'}
+              </CardTitle>
+              <p className="text-xs text-slate-500 font-mono mt-0.5">
+                {selectedBalance
+                  ? selectedBalance.product_sku
+                  : 'Select an active catalog item to stock in warehouse'}
+              </p>
             </div>
           </div>
           <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0">
@@ -89,18 +136,63 @@ export function AdjustmentModal({
               </div>
             )}
 
-            <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-3 text-xs space-y-1">
-              <div className="flex justify-between">
-                <span className="text-slate-500">Product:</span>
-                <span className="font-semibold text-slate-800">{selectedBalance.product_name}</span>
+            {selectedBalance ? (
+              <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-3 text-xs space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Product:</span>
+                  <span className="font-semibold text-slate-800">{selectedBalance.product_name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Current Balance:</span>
+                  <span className="font-mono font-bold text-slate-900">
+                    {selectedBalance.current_quantity} {selectedBalance.unit_of_measure}
+                  </span>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Current Balance:</span>
-                <span className="font-mono font-bold text-slate-900">
-                  {selectedBalance.current_quantity} {selectedBalance.unit_of_measure}
-                </span>
+            ) : (
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-700" htmlFor="adj-product">
+                    Catalog Product *
+                  </label>
+                  <select
+                    id="adj-product"
+                    className="flex h-10 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+                    value={selectedProductId}
+                    onChange={(e) => {
+                      const newProdId = e.target.value
+                      setSelectedProductId(newProdId)
+                      const existing = existingBalances.find(
+                        (b) => b.product === newProdId && b.location === locationId
+                      )
+                      const newCurrent = existing ? parseFloat(existing.current_quantity) || 0 : 0
+                      if (newCurrent === 0) {
+                        setReason('Initial opening inventory balance')
+                      }
+                    }}
+                    required
+                  >
+                    {availableProducts.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.sku} — {p.name} ({p.unit_of_measure})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-3 text-xs space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Current On-Hand in Selected Location:</span>
+                    <span className="font-mono font-bold text-slate-900">
+                      {currentVal.toFixed(2)} {currentUnit}
+                      {currentVal === 0 && (
+                        <span className="ml-2 font-normal text-amber-600">(New Opening Count)</span>
+                      )}
+                    </span>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="space-y-1">
               <label className="text-xs font-semibold text-slate-700" htmlFor="adj-loc">
