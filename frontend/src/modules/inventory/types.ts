@@ -11,6 +11,7 @@ export interface StockBalance {
   product: string
   product_sku: string
   product_name: string
+  product_is_active?: boolean
   category_name: string | null
   unit_of_measure: string
   location: string
