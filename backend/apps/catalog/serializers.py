@@ -1,6 +1,10 @@
 """
 Serializers for the catalog domain (Category, Product).
 """
+
+from decimal import Decimal
+
+from django.db.models import Sum
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
@@ -11,6 +15,7 @@ class CategorySerializer(serializers.ModelSerializer):
     """
     Serializer for category records with parent category label and product counts.
     """
+
     parent_name = serializers.ReadOnlyField(source="parent.name", default=None)
     products_count = serializers.SerializerMethodField()
 
@@ -28,7 +33,14 @@ class CategorySerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "slug", "parent_name", "products_count", "created_at", "updated_at"]
+        read_only_fields = [
+            "id",
+            "slug",
+            "parent_name",
+            "products_count",
+            "created_at",
+            "updated_at",
+        ]
 
     def get_products_count(self, obj: Category) -> int:
         return obj.products.filter(archived_at__isnull=True).count()
@@ -38,6 +50,7 @@ class CategoryTreeSerializer(serializers.ModelSerializer):
     """
     Hierarchical category serializer with nested children.
     """
+
     children = serializers.SerializerMethodField()
 
     class Meta:
@@ -61,8 +74,10 @@ class ProductSerializer(serializers.ModelSerializer):
     """
     Full serializer for Product CRUD operations.
     """
+
     category_name = serializers.ReadOnlyField(source="category.name", default=None)
     is_archived = serializers.BooleanField(read_only=True)
+    total_on_hand = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
@@ -78,6 +93,7 @@ class ProductSerializer(serializers.ModelSerializer):
             "purchase_cost",
             "selling_price",
             "reorder_threshold",
+            "total_on_hand",
             "is_active",
             "is_archived",
             "archived_at",
@@ -87,11 +103,16 @@ class ProductSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id",
             "category_name",
+            "total_on_hand",
             "is_archived",
             "archived_at",
             "created_at",
             "updated_at",
         ]
+
+    def get_total_on_hand(self, obj: Product) -> str:
+        total = obj.stock_balances.aggregate(total=Sum("current_quantity"))["total"]
+        return str(total or Decimal("0.00"))
 
     def validate_sku(self, value: str) -> str:
         trimmed = value.strip()
