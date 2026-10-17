@@ -12,6 +12,7 @@ import {
   fetchStockMovements,
   recordStockAdjustment,
 } from './api'
+import { fetchProducts } from '@/modules/catalog/api'
 import { AdjustmentModal } from './AdjustmentModal'
 import type { StockBalance, StockMovement } from './types'
 
@@ -33,6 +34,19 @@ export function InventoryView() {
     queryKey: ['inventory', 'locations'],
     queryFn: fetchLocations,
   })
+
+  // Fetch active products from catalog for opening balances
+  const { data: catalogData } = useQuery({
+    queryKey: ['catalog', 'products', { includeArchived: false }],
+    queryFn: () => fetchProducts({ includeArchived: false }),
+  })
+
+  const availableProducts = (catalogData?.results || []).map((p) => ({
+    id: p.id,
+    sku: p.sku,
+    name: p.name,
+    unit_of_measure: p.unit_of_measure,
+  }))
 
   // Fetch stock balances
   const { data: balancesData, isLoading: isBalancesLoading } = useQuery({
@@ -61,6 +75,8 @@ export function InventoryView() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inventory', 'balances'] })
       queryClient.invalidateQueries({ queryKey: ['inventory', 'movements'] })
+      queryClient.invalidateQueries({ queryKey: ['catalog', 'products'] })
+      queryClient.invalidateQueries({ queryKey: ['reports'] })
     },
   })
 
@@ -78,30 +94,46 @@ export function InventoryView() {
           </p>
         </div>
 
-        {/* Tab Switcher */}
-        <div className="flex items-center rounded-lg border border-slate-200 bg-white p-1 shadow-2xs">
-          <button
-            onClick={() => setActiveTab('balances')}
-            className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${
-              activeTab === 'balances'
-                ? 'bg-blue-50 text-blue-700 shadow-2xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Boxes className="h-4 w-4" />
-            <span>On-Hand Balances</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('movements')}
-            className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${
-              activeTab === 'movements'
-                ? 'bg-blue-50 text-blue-700 shadow-2xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <History className="h-4 w-4" />
-            <span>Movement Ledger</span>
-          </button>
+        {/* Actions & Tab Switcher */}
+        <div className="flex flex-wrap items-center gap-3">
+          {canManage && (
+            <Button
+              onClick={() => {
+                setSelectedBalance(null)
+                setIsAdjustModalOpen(true)
+              }}
+              className="gap-2 bg-blue-600 hover:bg-blue-700 text-white cursor-pointer shadow-xs"
+              size="sm"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              <span>+ Record Opening / Adjust Stock</span>
+            </Button>
+          )}
+
+          <div className="flex items-center rounded-lg border border-slate-200 bg-white p-1 shadow-2xs">
+            <button
+              onClick={() => setActiveTab('balances')}
+              className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${
+                activeTab === 'balances'
+                  ? 'bg-blue-50 text-blue-700 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Boxes className="h-4 w-4" />
+              <span>On-Hand Balances</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('movements')}
+              className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${
+                activeTab === 'movements'
+                  ? 'bg-blue-50 text-blue-700 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <History className="h-4 w-4" />
+              <span>Movement Ledger</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -195,7 +227,14 @@ export function InventoryView() {
                       <tr key={b.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-6 py-4 font-mono font-medium text-slate-900">{b.product_sku}</td>
                         <td className="px-6 py-4">
-                          <div className="font-semibold text-slate-900">{b.product_name}</div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-slate-900">{b.product_name}</span>
+                            {b.product_is_active === false && (
+                              <Badge variant="outline" className="text-amber-700 bg-amber-50 border-amber-200 text-2xs py-0 px-1.5">
+                                Archived
+                              </Badge>
+                            )}
+                          </div>
                           <div className="text-xs text-slate-400">{b.category_name || 'General'}</div>
                         </td>
                         <td className="px-6 py-4">
@@ -334,9 +373,10 @@ export function InventoryView() {
         </Card>
       )}
 
-      {/* Cycle Count Adjustment Modal */}
-      {isAdjustModalOpen && selectedBalance && (
+      {/* Cycle Count / Opening Stock Adjustment Modal */}
+      {isAdjustModalOpen && (
         <AdjustmentModal
+          key={selectedBalance ? selectedBalance.id : `new-${isAdjustModalOpen}`}
           isOpen={isAdjustModalOpen}
           onClose={() => {
             setIsAdjustModalOpen(false)
@@ -347,6 +387,8 @@ export function InventoryView() {
           }}
           selectedBalance={selectedBalance}
           locations={locations}
+          availableProducts={availableProducts}
+          existingBalances={balances}
         />
       )}
     </div>
