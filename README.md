@@ -12,7 +12,9 @@ Uniflow is a reliable, maintainable, locally hosted business management system d
 - **[Database Design](docs/database-design.md)**: Relational schema, tables, foreign keys, and integrity constraints.
 - **[API Contract](docs/api-contract.md)**: REST endpoints, request/response envelopes, and status codes.
 - **[Offline Synchronization](docs/offline-sync.md)**: IndexedDB outbox queue, idempotency, and offline state handling.
-- **[Local Deployment & Development Runbook](docs/deployment.md)**: Step-by-step developer setup for running backend and frontend locally.
+- **[Local Deployment & Development Runbook](docs/deployment.md)**: Step-by-step developer setup and on-premise production hosting.
+- **[Backup & Disaster Recovery](docs/backup-restore.md)**: Database backup automation, snapshot retention, safe restoration, and ledger reconciliation verification.
+- **[Security Hardening Guide](docs/security.md)**: Production settings, LAN firewall rules, TLS certificates, and RBAC matrix.
 
 ---
 
