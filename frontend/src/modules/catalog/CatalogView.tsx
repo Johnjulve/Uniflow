@@ -201,6 +201,7 @@ export function CatalogView() {
                     <th className="px-6 py-3.5 font-semibold">Category</th>
                     <th className="px-6 py-3.5 font-semibold text-right">Cost Price</th>
                     <th className="px-6 py-3.5 font-semibold text-right">Selling Price</th>
+                    <th className="px-6 py-3.5 font-semibold text-right">On-Hand Stock</th>
                     <th className="px-6 py-3.5 font-semibold text-center">Status</th>
                     {canManage && <th className="px-6 py-3.5 font-semibold text-right">Actions</th>}
                   </tr>
@@ -221,6 +222,18 @@ export function CatalogView() {
                       </td>
                       <td className="px-6 py-4 text-right font-mono font-semibold text-slate-900">
                         ${parseFloat(p.selling_price).toFixed(2)}
+                      </td>
+                      <td className="px-6 py-4 text-right font-mono">
+                        {p.total_on_hand && parseFloat(p.total_on_hand) > 0 ? (
+                          <span className="font-bold text-emerald-700">
+                            {parseFloat(p.total_on_hand).toFixed(2)}{' '}
+                            <span className="text-xs font-normal text-slate-500">{p.unit_of_measure}</span>
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">
+                            0.00 <span className="text-xs font-normal">{p.unit_of_measure}</span>
+                          </span>
+                        )}
                       </td>
                       <td className="px-6 py-4 text-center">
                         {p.is_archived ? (
