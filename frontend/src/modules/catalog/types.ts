@@ -22,6 +22,7 @@ export interface Product {
   purchase_cost: string
   selling_price: string
   reorder_threshold: string
+  total_on_hand?: string
   is_active: boolean
   is_archived: boolean
   archived_at: string | null
