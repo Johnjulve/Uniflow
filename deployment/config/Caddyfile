@@ -1,0 +1,46 @@
+# ==============================================================================
+# Uniflow IMS - Production Caddyfile Reverse Proxy Configuration
+# ==============================================================================
+# Zero-config single-binary reverse proxy for local business LAN deployments.
+# ==============================================================================
+
+:80 {
+    # Replace with path to compiled frontend dist directory
+    root * ./frontend/dist
+
+    # Gzip and Zstandard compression
+    encode gzip zstd
+
+    # Security Headers
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+
+    # Proxy REST API requests to backend application server
+    handle /api/* {
+        reverse_proxy 127.0.0.1:8000
+    }
+
+    # Proxy Django Admin requests
+    handle /admin/* {
+        reverse_proxy 127.0.0.1:8000
+    }
+
+    # Serve Django collected staticfiles
+    handle_path /static/* {
+        root * ./backend/staticfiles
+        file_server
+    }
+
+    # Vite hashed static assets (cached immutable)
+    @assets path /assets/*
+    header @assets Cache-Control "public, max-age=31536000, immutable"
+
+    # Frontend Single Page Application fallback routing
+    handle {
+        try_files {path} /index.html
+        file_server
+    }
+}
