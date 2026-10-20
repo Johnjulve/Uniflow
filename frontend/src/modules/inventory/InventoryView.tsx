@@ -77,6 +77,7 @@ export function InventoryView() {
       queryClient.invalidateQueries({ queryKey: ['inventory', 'movements'] })
       queryClient.invalidateQueries({ queryKey: ['catalog', 'products'] })
       queryClient.invalidateQueries({ queryKey: ['reports'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
     },
   })
 
