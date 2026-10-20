@@ -114,17 +114,40 @@ def test_submit_order_invalid_status(purchaser, supplier, product_a):
 
 
 @pytest.mark.django_db
-def test_cancel_order(purchaser, supplier, product_a):
+def test_cancel_draft_order_discards_without_logging(purchaser, supplier):
     po = PurchaseOrder.objects.create(
-        order_reference="PO-TEST-CANCEL",
+        order_reference="PO-TEST-CANCEL-DRAFT",
         supplier=supplier,
         created_by=purchaser,
+    )
+    result = PurchaseOrderService.cancel_order(
+        purchase_order=po,
+        actor=purchaser,
+    )
+    assert result is None
+    assert not PurchaseOrder.objects.filter(order_reference="PO-TEST-CANCEL-DRAFT").exists()
+
+
+@pytest.mark.django_db
+def test_cancel_submitted_order_records_log(purchaser, supplier, product_a):
+    po = PurchaseOrder.objects.create(
+        order_reference="PO-TEST-CANCEL-SUBMITTED",
+        supplier=supplier,
+        status=PurchaseOrderStatus.SUBMITTED,
+        created_by=purchaser,
+    )
+    PurchaseOrderItem.objects.create(
+        purchase_order=po,
+        product=product_a,
+        ordered_quantity=Decimal("10.00"),
+        unit_cost=Decimal("15.0000"),
     )
     cancelled = PurchaseOrderService.cancel_order(
         purchase_order=po,
         actor=purchaser,
         reason="Vendor out of stock",
     )
+    assert cancelled is not None
     assert cancelled.status == PurchaseOrderStatus.CANCELLED
     assert "Vendor out of stock" in cancelled.notes
 
