@@ -5,11 +5,12 @@ from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
 from apps.accounts.permissions import CanManageStock, IsInventoryManagerRole, IsReadOnlyViewer
 from apps.purchasing.exceptions import PurchasingError
-from apps.purchasing.models import PurchaseOrder, Receipt, Supplier
+from apps.purchasing.models import PurchaseOrder, PurchaseOrderStatus, Receipt, Supplier
 from apps.purchasing.serializers import (
     PurchaseOrderCreateSerializer,
     PurchaseOrderSerializer,
@@ -93,9 +94,19 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
             cancelled_po = PurchaseOrderService.cancel_order(
                 purchase_order=po, actor=request.user, reason=reason
             )
+            if cancelled_po is None:
+                return Response(
+                    {"status": "DISCARDED", "detail": "Draft purchase order discarded successfully."},
+                    status=status.HTTP_200_OK,
+                )
             return Response(PurchaseOrderSerializer(cancelled_po).data)
         except PurchasingError as err:
             return Response({"error": {"code": "VALIDATION_ERROR", "message": str(err)}}, status=status.HTTP_400_BAD_REQUEST)
+
+    def perform_destroy(self, instance):
+        if instance.status != PurchaseOrderStatus.DRAFT:
+            raise ValidationError({"detail": "Only draft purchase orders can be deleted."})
+        instance.delete()
 
 
 @extend_schema_view(
