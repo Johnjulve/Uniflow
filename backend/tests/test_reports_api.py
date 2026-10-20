@@ -12,6 +12,7 @@ from rest_framework.test import APIClient
 from apps.catalog.models import Category, Product
 from apps.inventory.models import Location
 from apps.inventory.services import StockMovementService
+from apps.purchasing.models import PurchaseOrder, PurchaseOrderItem, Supplier
 
 User = get_user_model()
 
@@ -103,7 +104,20 @@ def test_dashboard_summary_unauthenticated():
 
 @pytest.mark.django_db
 def test_dashboard_summary_metrics(auth_client, sample_inventory_setup):
-    client, _ = auth_client
+    client, user = auth_client
+    supplier = Supplier.objects.create(name="Acme Tools", email="acme@tools.test")
+    po = PurchaseOrder.objects.create(
+        order_reference="PO-TEST-001",
+        supplier=supplier,
+        created_by=user,
+    )
+    PurchaseOrderItem.objects.create(
+        purchase_order=po,
+        product=sample_inventory_setup["p1"],
+        ordered_quantity=Decimal("10.00"),
+        unit_cost=Decimal("12.5000"),
+    )
+
     response = client.get("/api/v1/reports/summary/")
     assert response.status_code == status.HTTP_200_OK
 
@@ -116,6 +130,9 @@ def test_dashboard_summary_metrics(auth_client, sample_inventory_setup):
     assert data["low_stock_count"] == 1  # p2
     assert data["out_of_stock_count"] == 1  # p3
     assert len(data["recent_movements"]) == 2  # Two adjustments recorded
+    assert len(data["recent_purchase_orders"]) == 1
+    assert data["recent_purchase_orders"][0]["order_reference"] == "PO-TEST-001"
+    assert Decimal(data["recent_purchase_orders"][0]["total_amount"]) == Decimal("125.0000")
     assert "server_timestamp" in data
 
 
