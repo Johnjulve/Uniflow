@@ -83,7 +83,7 @@ class ReportsService:
                 "supplier_name": po.supplier.name,
                 "status": po.status,
                 "status_display": po.get_status_display(),
-                "total_amount": str(po.total_amount),
+                "total_amount": str(po.total_cost),
                 "order_date": po.order_date.isoformat(),
                 "created_at": po.created_at.isoformat(),
             }
