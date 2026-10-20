@@ -50,9 +50,13 @@ Narrowing scope does **not** mean sloppy code. In Uniflow, core inventory featur
 - Bounded concurrency with row-level locks on balance rows.
 - Idempotency on all receipt postings and sync requests.
 
-### 3. Session Modification Limits
-- Restrict code modifications to a maximum of **2–5 files per session**.
-- If a proposed phase or refactoring requires touching more files, pause immediately and break it into explicit stages.
+### 4. Strict DAG & Coordinator Architecture (No Circular Dependencies)
+- All services and models must form a **Directed Acyclic Graph (DAG)**. Circular imports between apps are strictly forbidden.
+- **Three-Tier Separation**:
+  1. *Entity/Model Tier*: Pure models (`Product`, `StockMovement`, `StockBalance`, `PurchaseOrder`). Depends on nothing above it.
+  2. *Domain Service Tier*: Self-contained operations (`StockMovementService`, `PurchaseOrderService`). Peer domain services must **never** call or import each other directly.
+  3. *Coordinator / Workflow Tier*: Top-level handlers or workflow coordinators (`PurchaseOrderService.receive_delivery`, API views) that orchestrate multiple domain services top-down.
+- Cross-domain operations must flow strictly top-down via coordinators or domain events, never through horizontal peer-to-peer coupling.
 
 ---
 
@@ -62,6 +66,7 @@ Before declaring any task or phase milestone complete:
 
 - [ ] **Zero unrequested features**: No CMS, POS, multi-tenant billing, or external queuing services introduced.
 - [ ] **No speculative layers**: Code directly calls Django models/services without gratuitous repository abstractions.
+- [ ] **Strict DAG & zero circular dependencies**: Domain services do not import peer domain services; multi-app workflows use top-down coordinators.
 - [ ] **Core requirements satisfied**: Inventory changes produce immutable ledger movements and atomic balance updates.
 - [ ] **Modification limit respected**: Stayed within the 2–5 file change boundary.
 - [ ] **Clean verification**: All tests (`pytest`, `npm test`, or typechecks) pass with zero errors.
