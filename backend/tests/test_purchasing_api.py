@@ -138,12 +138,38 @@ def test_purchase_order_create_and_submit(api_client, staff_user, supplier, prod
 
 
 @pytest.mark.django_db
-def test_purchase_order_cancel(api_client, staff_user, supplier, product):
+def test_purchase_order_cancel_draft_discards(api_client, staff_user, supplier, product):
     api_client.force_authenticate(user=staff_user)
 
     po = PurchaseOrder.objects.create(
-        order_reference="PO-CANCEL-001",
+        order_reference="PO-CANCEL-DRAFT-001",
         supplier=supplier,
+        created_by=staff_user,
+    )
+    PurchaseOrderItem.objects.create(
+        purchase_order=po,
+        product=product,
+        ordered_quantity=Decimal("50.00"),
+        unit_cost=Decimal("0.0500"),
+    )
+
+    res = api_client.post(
+        f"/api/v1/purchase-orders/{po.id}/cancel/",
+        format="json",
+    )
+    assert res.status_code == status.HTTP_200_OK
+    assert res.data["status"] == "DISCARDED"
+    assert not PurchaseOrder.objects.filter(id=po.id).exists()
+
+
+@pytest.mark.django_db
+def test_purchase_order_cancel_submitted_logs(api_client, staff_user, supplier, product):
+    api_client.force_authenticate(user=staff_user)
+
+    po = PurchaseOrder.objects.create(
+        order_reference="PO-CANCEL-SUBMITTED-001",
+        supplier=supplier,
+        status=PurchaseOrderStatus.SUBMITTED,
         created_by=staff_user,
     )
     PurchaseOrderItem.objects.create(
