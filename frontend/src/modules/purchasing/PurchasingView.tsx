@@ -137,6 +137,8 @@ export function PurchasingView() {
     mutationFn: ({ id, reason }: { id: string; reason?: string }) => cancelPurchaseOrder(id, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['purchase-orders'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['reports'] })
     },
     onError: (err: Error) => {
       alert(err.message || 'Failed to cancel order')
@@ -465,14 +467,13 @@ export function PurchasingView() {
                             variant="ghost"
                             className="text-xs h-8 text-rose-600 hover:bg-rose-50"
                             onClick={() => {
-                              const reason = window.prompt('Provide a cancellation reason (optional):')
-                              if (reason !== null) {
-                                cancelOrderMutation.mutate({ id: po.id, reason })
+                              if (window.confirm('Discard this draft purchase order? It will not be kept in the logs.')) {
+                                cancelOrderMutation.mutate({ id: po.id })
                               }
                             }}
                             disabled={cancelOrderMutation.isPending}
                           >
-                            Cancel
+                            Discard Draft
                           </Button>
                         </>
                       )}
