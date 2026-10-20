@@ -1,0 +1,13 @@
+.git
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.ruff_cache
+frontend/node_modules
+frontend/dist
+backend/dev.sqlite3
+backend/production.sqlite3
+.env
