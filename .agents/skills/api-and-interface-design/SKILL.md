@@ -97,3 +97,10 @@ For all state-mutating operations and offline sync push payloads:
 
 ### Rule 5: OpenAPI Documentation
 All viewsets must be annotated with `drf-spectacular` (`@extend_schema`) so the generated OpenAPI schema remains accurate and up to date for frontend client generation and verification.
+
+### Rule 6: Unidirectional Service Boundaries (Strict DAG & Coordinator Pattern)
+Prevent circular dependencies and tight inter-domain coupling:
+- **Strict DAG Flow**: Dependencies across Django apps must form a Directed Acyclic Graph. E.g., `apps.purchasing` may depend on `apps.inventory`, but `apps.inventory` must **never** import or depend on `apps.purchasing`.
+- **Peer Service Isolation**: Domain services at the same functional tier (`StockMovementService`, `PurchaseOrderService`) must never call or import each other directly.
+- **Top-Down Coordination**: Cross-domain workflows (such as receiving a delivery intake that marks PO line items received and commits ledger movements) must be coordinated by a top-level workflow orchestrator (e.g., `PurchaseOrderService.receive_delivery` or dedicated intake coordinators), directing each domain service unidirectionally.
+
