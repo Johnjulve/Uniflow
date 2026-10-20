@@ -84,6 +84,10 @@ class PurchaseOrderService:
                     f"or after receipts have been posted."
                 )
 
+            if po.status == PurchaseOrderStatus.DRAFT:
+                po.delete()
+                return None
+
             po.status = PurchaseOrderStatus.CANCELLED
             if reason:
                 note_entry = f"Cancelled on {timezone.now().strftime('%Y-%m-%d %H:%M')}: {reason}"
