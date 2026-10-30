@@ -2,9 +2,36 @@
 Serializers for accounts authentication and profile management.
 """
 from django.contrib.auth import authenticate
+from django.db import IntegrityError, transaction
 from rest_framework import serializers
+from rest_framework.authtoken.models import Token
 
 from apps.accounts.models import User, UserRole
+from apps.common.models import AuditLog
+
+
+class AuditLogSerializer(serializers.ModelSerializer):
+    """
+    Read-only serializer for immutable system and admin audit log entries.
+    """
+    action_display = serializers.CharField(source="get_action_display", read_only=True)
+
+    class Meta:
+        model = AuditLog
+        fields = [
+            "id",
+            "actor_username",
+            "action",
+            "action_display",
+            "entity_type",
+            "entity_id",
+            "summary",
+            "changes",
+            "ip_address",
+            "source",
+            "created_at",
+        ]
+        read_only_fields = fields
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -73,12 +100,6 @@ class LoginRequestSerializer(serializers.Serializer):
                 code="INVALID_CREDENTIALS",
             )
 
-        if not user.is_active:
-            raise serializers.ValidationError(
-                {"detail": "User account is inactive or disabled."},
-                code="ACCOUNT_INACTIVE",
-            )
-
         attrs["user"] = user
         return attrs
 
@@ -89,3 +110,109 @@ class LoginResponseSerializer(serializers.Serializer):
     """
     token = serializers.CharField()
     user = UserProfileSerializer()
+
+
+class BaseAdminUserWriteSerializer(serializers.ModelSerializer):
+    """
+    Shared base serializer for admin user creation and updates.
+    """
+    def validate_email(self, value: str) -> str:
+        return value.strip().lower()
+
+    def to_representation(self, instance: User) -> dict:
+        return UserProfileSerializer(instance, context=self.context).data
+
+
+class UserCreateSerializer(BaseAdminUserWriteSerializer):
+    """
+    Serializer for administrators to provision new user accounts.
+    """
+    password = serializers.CharField(
+        write_only=True,
+        required=True,
+        min_length=8,
+        style={"input_type": "password"},
+    )
+
+    class Meta:
+        model = User
+        fields = [
+            "username",
+            "password",
+            "email",
+            "first_name",
+            "last_name",
+            "role",
+            "is_active",
+        ]
+
+    def validate_username(self, value: str) -> str:
+        clean_username = value.strip()
+        if User.objects.filter(username__iexact=clean_username).exists():
+            raise serializers.ValidationError("A user with this username already exists.")
+        return clean_username
+
+    def create(self, validated_data: dict) -> User:
+        password = validated_data.pop("password")
+        try:
+            with transaction.atomic():
+                return User.objects.create_user(password=password, **validated_data)
+        except IntegrityError as exc:
+            raise serializers.ValidationError(
+                {"username": "A user with this username already exists."}
+            ) from exc
+
+
+class UserUpdateSerializer(BaseAdminUserWriteSerializer):
+    """
+    Serializer for administrators to update roles, active status, or credentials.
+    """
+    password = serializers.CharField(
+        write_only=True,
+        required=False,
+        allow_blank=False,
+        min_length=8,
+        style={"input_type": "password"},
+    )
+
+    class Meta:
+        model = User
+        fields = [
+            "email",
+            "first_name",
+            "last_name",
+            "role",
+            "is_active",
+            "password",
+        ]
+
+    def validate(self, attrs: dict) -> dict:
+        request = self.context.get("request")
+        if not (request and self.instance and request.user.id == self.instance.id):
+            return attrs
+
+        if attrs.get("is_active") is False:
+            raise serializers.ValidationError(
+                {"is_active": "You cannot deactivate your own active administrator account."}
+            )
+        if (
+            "role" in attrs
+            and self.instance.role == UserRole.ADMIN
+            and attrs["role"] != UserRole.ADMIN
+        ):
+            raise serializers.ValidationError(
+                {"role": "You cannot demote your own administrator role."}
+            )
+        return attrs
+
+    @transaction.atomic
+    def update(self, instance: User, validated_data: dict) -> User:
+        password = validated_data.pop("password", None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        if password:
+            instance.set_password(password)
+        instance.save()
+        if not instance.is_active:
+            Token.objects.filter(user=instance).delete()
+        return instance

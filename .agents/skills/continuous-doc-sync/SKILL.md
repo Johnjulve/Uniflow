@@ -57,8 +57,10 @@ Before declaring any phase milestone complete:
 
 ## Git Release & Milestone Runbook
 
-### Commit Authorization Gate
-**Strict Rule**: Never automatically execute `git commit` commands without explicit user authorization in the immediate prompt. Always present the proposed commit command, files, and commit message first so the user can inspect, review, or edit before committing.
+### Branch Isolation & Commit Authorization Gate
+- **Working-Branch Safety Gate**: Never modify code or commit directly on `main`. Always check `.git/HEAD` / `git branch` first; if on `main`, instruct the user to switch to a working branch (`git checkout -b <type>/<scope>`) before applying or committing changes.
+- **Strict Commit Rule**: Never automatically execute `git commit` commands without explicit user authorization in the immediate prompt. Always present the proposed file-by-file or coupled-group commit commands and commit messages first so the user can inspect, review, or edit before committing.
+- **Pre-Merge Main-Branch Gate**: Before merging a working branch or opening a PR into `main`, verify that `CHANGELOG.md`, `README.md`, `docs/*`, and runtime version variables (`backend/pyproject.toml`, `frontend/package.json`) are 100% updated on the working branch so zero follow-up commits are needed on `main`.
 
 When a phase milestone in `Plan/Implementation.md` is completed and verified:
 1. **Pre-Verification**: Run backend tests (`pytest`), frontend checks (`npm run test`, `npm run build`), and verify migrations (`python manage.py makemigrations --check`).

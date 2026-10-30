@@ -1,6 +1,8 @@
 """
 REST API ViewSets for the product catalog domain.
 """
+from django.db.models import Count, ProtectedError, Sum
+from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import (
     OpenApiParameter,
     OpenApiResponse,
@@ -31,15 +33,31 @@ from apps.catalog.serializers import (
 )
 class CategoryViewSet(viewsets.ModelViewSet):
     """
-    CRUD viewset for product categories with tree view support.
+    CRUD viewset for product categories with tree view support and safe deletion guard.
     """
-    queryset = Category.objects.all().select_related("parent")
+    queryset = Category.objects.all().select_related("parent").annotate(
+        annotated_products_count=Count("products")
+    )
     serializer_class = CategorySerializer
     permission_classes = [IsManagerOrReadOnly]
     filterset_fields = ["is_active", "parent"]
     search_fields = ["name", "slug"]
     ordering_fields = ["name", "created_at"]
     ordering = ["name"]
+
+    def perform_destroy(self, instance: Category):
+        if instance.products.exists():
+            raise ValidationError(
+                {"detail": "Category cannot be deleted while products are assigned to it."},
+                code="CATEGORY_IN_USE",
+            )
+        try:
+            super().perform_destroy(instance)
+        except ProtectedError as exc:
+            raise ValidationError(
+                {"detail": "Category cannot be deleted while products are assigned to it."},
+                code="CATEGORY_IN_USE",
+            ) from exc
 
     @extend_schema(
         description="Returns hierarchical category tree starting from root categories.",
@@ -79,7 +97,9 @@ class ProductViewSet(viewsets.ModelViewSet):
     """
     CRUD viewset for products with lifecycle archival support.
     """
-    queryset = Product.objects.all().select_related("category")
+    queryset = Product.objects.all().select_related("category").annotate(
+        annotated_total_on_hand=Sum("stock_balances__current_quantity")
+    )
     serializer_class = ProductSerializer
     permission_classes = [IsManagerOrReadOnly]
     filterset_fields = ["category", "is_active", "unit_of_measure"]
@@ -95,7 +115,6 @@ class ProductViewSet(viewsets.ModelViewSet):
         return qs
 
     def perform_destroy(self, instance: Product):
-        # Prevent deletion if product has historical transactions
         has_movements = hasattr(instance, "stock_movements") and instance.stock_movements.exists()
         has_po_items = hasattr(instance, "purchase_order_items") and instance.purchase_order_items.exists()
 
@@ -138,8 +157,8 @@ class ProductViewSet(viewsets.ModelViewSet):
     )
     @action(detail=True, methods=["post"])
     def unarchive(self, request, pk=None):
-        # We need to look up even if archived
-        product = Product.objects.get(pk=pk)
+        product = get_object_or_404(Product, pk=pk)
+        self.check_object_permissions(request, product)
         if not product.is_archived:
             return Response(
                 {"detail": "Product is not archived."},

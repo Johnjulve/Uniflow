@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import {
   CheckCircle2,
   Clock,
+  Minus,
   PackageCheck,
   Plus,
   Search,
@@ -247,8 +248,8 @@ export function PurchasingView() {
       const remaining = Math.max(0, ordered - received)
       return {
         po_item_id: it.id,
-        accepted_quantity: remaining.toFixed(2),
-        rejected_quantity: '0.00',
+        accepted_quantity: String(remaining),
+        rejected_quantity: '0',
         notes: '',
       }
     })
@@ -399,7 +400,7 @@ export function PurchasingView() {
                 <th className="px-6 py-3">Order Reference</th>
                 <th className="px-6 py-3">Vendor / Supplier</th>
                 <th className="px-6 py-3">Status</th>
-                <th className="px-6 py-3">Ordered vs Received</th>
+                <th className="px-6 py-3">Received / Ordered</th>
                 <th className="px-6 py-3">Order Total</th>
                 <th className="px-6 py-3 text-right">Actions</th>
               </tr>
@@ -628,17 +629,40 @@ export function PurchasingView() {
                             ))}
                           </select>
                         </div>
-                        <div className="w-28">
-                          <Input
+                        <div className="flex items-center rounded-md border border-slate-300 bg-white">
+                          <button
+                            type="button"
+                            aria-label="Decrease quantity"
+                            onClick={() => {
+                              const curr = parseFloat(item.ordered_quantity) || 1
+                              const next = Math.max(1, curr - 1)
+                              handleItemChange(index, 'ordered_quantity', String(next))
+                            }}
+                            className="flex h-8 w-7 items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-800 disabled:opacity-40"
+                            disabled={(parseFloat(item.ordered_quantity) || 1) <= 1}
+                          >
+                            <Minus className="h-3 w-3" />
+                          </button>
+                          <input
                             type="number"
-                            step="0.01"
-                            min="0.01"
-                            placeholder="Qty"
+                            step="1"
+                            min="1"
                             value={item.ordered_quantity}
                             onChange={(e) => handleItemChange(index, 'ordered_quantity', e.target.value)}
-                            className="h-8 text-xs text-right"
+                            className="h-8 w-14 border-x border-slate-200 text-center text-xs text-slate-800 focus:outline-hidden [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                             required
                           />
+                          <button
+                            type="button"
+                            aria-label="Increase quantity"
+                            onClick={() => {
+                              const curr = parseFloat(item.ordered_quantity) || 0
+                              handleItemChange(index, 'ordered_quantity', String(curr + 1))
+                            }}
+                            className="flex h-8 w-7 items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                          >
+                            <Plus className="h-3 w-3" />
+                          </button>
                         </div>
                         <div className="w-32">
                           <Input
@@ -765,8 +789,8 @@ export function PurchasingView() {
                           <th className="p-2.5 text-right">Ordered</th>
                           <th className="p-2.5 text-right">Received</th>
                           <th className="p-2.5 text-right">Remaining</th>
-                          <th className="p-2.5 text-right w-28">Accept Now</th>
-                          <th className="p-2.5 text-right w-28">Damaged</th>
+                          <th className="p-2.5 text-right w-36">Accept Now</th>
+                          <th className="p-2.5 text-right w-36">Damaged</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-200">
@@ -790,34 +814,100 @@ export function PurchasingView() {
                               <td className="p-2.5 text-right font-semibold text-blue-700">
                                 {remaining.toFixed(2)}
                               </td>
-                              <td className="p-2.5 text-right">
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  max={remaining}
-                                  value={receivingItems[idx]?.accepted_quantity || '0.00'}
-                                  onChange={(e) => {
-                                    const updated = [...receivingItems]
-                                    updated[idx].accepted_quantity = e.target.value
-                                    setReceivingItems(updated)
-                                  }}
-                                  className="h-8 text-xs text-right font-semibold text-emerald-700"
-                                />
+                              <td className="p-2.5 text-right w-36">
+                                <div className="flex items-center justify-end">
+                                  <div className="flex items-center rounded-md border border-slate-300 bg-white">
+                                    <button
+                                      type="button"
+                                      aria-label="Decrease accepted quantity"
+                                      onClick={() => {
+                                        const curr = parseFloat(receivingItems[idx]?.accepted_quantity) || 0
+                                        const next = Math.max(0, curr - 1)
+                                        const updated = [...receivingItems]
+                                        updated[idx].accepted_quantity = String(next)
+                                        setReceivingItems(updated)
+                                      }}
+                                      className="flex h-8 w-7 items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-800 disabled:opacity-40"
+                                      disabled={(parseFloat(receivingItems[idx]?.accepted_quantity) || 0) <= 0}
+                                    >
+                                      <Minus className="h-3 w-3" />
+                                    </button>
+                                    <input
+                                      type="number"
+                                      step="1"
+                                      min="0"
+                                      max={remaining}
+                                      value={receivingItems[idx]?.accepted_quantity || '0'}
+                                      onChange={(e) => {
+                                        const updated = [...receivingItems]
+                                        updated[idx].accepted_quantity = e.target.value
+                                        setReceivingItems(updated)
+                                      }}
+                                      className="h-8 w-14 border-x border-slate-200 text-center text-xs font-semibold text-emerald-700 focus:outline-hidden [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                    />
+                                    <button
+                                      type="button"
+                                      aria-label="Increase accepted quantity"
+                                      onClick={() => {
+                                        const curr = parseFloat(receivingItems[idx]?.accepted_quantity) || 0
+                                        const next = Math.min(remaining, curr + 1)
+                                        const updated = [...receivingItems]
+                                        updated[idx].accepted_quantity = String(next)
+                                        setReceivingItems(updated)
+                                      }}
+                                      className="flex h-8 w-7 items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-800 disabled:opacity-40"
+                                      disabled={(parseFloat(receivingItems[idx]?.accepted_quantity) || 0) >= remaining}
+                                    >
+                                      <Plus className="h-3 w-3" />
+                                    </button>
+                                  </div>
+                                </div>
                               </td>
-                              <td className="p-2.5 text-right">
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  value={receivingItems[idx]?.rejected_quantity || '0.00'}
-                                  onChange={(e) => {
-                                    const updated = [...receivingItems]
-                                    updated[idx].rejected_quantity = e.target.value
-                                    setReceivingItems(updated)
-                                  }}
-                                  className="h-8 text-xs text-right text-rose-700"
-                                />
+                              <td className="p-2.5 text-right w-36">
+                                <div className="flex items-center justify-end">
+                                  <div className="flex items-center rounded-md border border-slate-300 bg-white">
+                                    <button
+                                      type="button"
+                                      aria-label="Decrease damaged quantity"
+                                      onClick={() => {
+                                        const curr = parseFloat(receivingItems[idx]?.rejected_quantity) || 0
+                                        const next = Math.max(0, curr - 1)
+                                        const updated = [...receivingItems]
+                                        updated[idx].rejected_quantity = String(next)
+                                        setReceivingItems(updated)
+                                      }}
+                                      className="flex h-8 w-7 items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-800 disabled:opacity-40"
+                                      disabled={(parseFloat(receivingItems[idx]?.rejected_quantity) || 0) <= 0}
+                                    >
+                                      <Minus className="h-3 w-3" />
+                                    </button>
+                                    <input
+                                      type="number"
+                                      step="1"
+                                      min="0"
+                                      value={receivingItems[idx]?.rejected_quantity || '0'}
+                                      onChange={(e) => {
+                                        const updated = [...receivingItems]
+                                        updated[idx].rejected_quantity = e.target.value
+                                        setReceivingItems(updated)
+                                      }}
+                                      className="h-8 w-14 border-x border-slate-200 text-center text-xs font-semibold text-rose-700 focus:outline-hidden [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                    />
+                                    <button
+                                      type="button"
+                                      aria-label="Increase damaged quantity"
+                                      onClick={() => {
+                                        const curr = parseFloat(receivingItems[idx]?.rejected_quantity) || 0
+                                        const updated = [...receivingItems]
+                                        updated[idx].rejected_quantity = String(curr + 1)
+                                        setReceivingItems(updated)
+                                      }}
+                                      className="flex h-8 w-7 items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                                    >
+                                      <Plus className="h-3 w-3" />
+                                    </button>
+                                  </div>
+                                </div>
                               </td>
                             </tr>
                           )
