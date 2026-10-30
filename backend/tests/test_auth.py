@@ -191,3 +191,101 @@ def test_admin_deactivate_user_revokes_token_and_prevents_self_lockout(
         format="json",
     )
     assert self_demote_res.status_code == status.HTTP_400_BAD_REQUEST
+
+
+@pytest.mark.django_db
+def test_admin_can_view_audit_logs_with_filters(api_client, admin_user, regular_user):
+    from apps.common.models import AuditAction, AuditLog
+
+    # Create dummy audit events
+    AuditLog.objects.create(
+        actor=admin_user,
+        actor_username=admin_user.username,
+        action=AuditAction.CREATED,
+        entity_type="Category",
+        entity_id="cat-100",
+        summary="Created Category 'Hardware'",
+        changes={"created": {"name": "Hardware"}},
+        source="DJANGO_ADMIN",
+    )
+    AuditLog.objects.create(
+        actor=regular_user,
+        actor_username=regular_user.username,
+        action=AuditAction.LOGIN,
+        entity_type="User",
+        entity_id=str(regular_user.id),
+        summary="User 'staffuser' signed in via API",
+        source="API",
+    )
+
+    token = Token.objects.create(user=admin_user)
+    api_client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+
+    url = reverse("auth:audit-log-list")
+    res = api_client.get(url)
+    assert res.status_code == status.HTTP_200_OK
+    results = res.data.get("results", res.data)
+    assert len(results) >= 2
+
+    # Filter by source=DJANGO_ADMIN
+    filter_res = api_client.get(f"{url}?source=DJANGO_ADMIN")
+    assert filter_res.status_code == status.HTTP_200_OK
+    filtered = filter_res.data.get("results", filter_res.data)
+    assert len(filtered) == 1
+    assert filtered[0]["entity_type"] == "Category"
+    assert filtered[0]["source"] == "DJANGO_ADMIN"
+
+
+@pytest.mark.django_db
+def test_audit_log_immutability_enforced(admin_user):
+    from django.core.exceptions import ValidationError
+    from apps.common.models import AuditAction, AuditLog
+
+    log = AuditLog.objects.create(
+        actor=admin_user,
+        actor_username=admin_user.username,
+        action=AuditAction.CREATED,
+        entity_type="Product",
+        entity_id="prod-1",
+        summary="Created Product",
+    )
+
+    # Instance save/delete blocks
+    with pytest.raises(ValidationError):
+        log.summary = "Tampered summary"
+        log.save()
+
+    with pytest.raises(ValidationError):
+        log.delete()
+
+    # Bulk QuerySet update/delete blocks
+    with pytest.raises(ValidationError):
+        AuditLog.objects.filter(id=log.id).update(summary="Bulk tampered")
+
+    with pytest.raises(ValidationError):
+        AuditLog.objects.filter(id=log.id).delete()
+
+
+@pytest.mark.django_db
+def test_non_admin_and_unauthenticated_cannot_access_audit_logs(
+    api_client, regular_user, admin_user
+):
+    url = reverse("auth:audit-log-list")
+
+    # 1. Unauthenticated request rejected with 401
+    unauth_res = api_client.get(url)
+    assert unauth_res.status_code == status.HTTP_401_UNAUTHORIZED
+
+    # 2. Authenticated non-admin rejected with 403
+    staff_token = Token.objects.create(user=regular_user)
+    api_client.credentials(HTTP_AUTHORIZATION=f"Token {staff_token.key}")
+    forbidden_res = api_client.get(url)
+    assert forbidden_res.status_code == status.HTTP_403_FORBIDDEN
+
+    # 3. Authenticated admin write attempts rejected with 405 Method Not Allowed
+    admin_token = Token.objects.create(user=admin_user)
+    api_client.credentials(HTTP_AUTHORIZATION=f"Token {admin_token.key}")
+    post_res = api_client.post(url, {"summary": "Direct API audit write"}, format="json")
+    assert post_res.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
+
+
