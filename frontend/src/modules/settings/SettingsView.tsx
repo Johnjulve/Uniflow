@@ -1,7 +1,10 @@
 import React, { useState } from 'react'
 import {
+  Activity,
   AlertCircle,
   CheckCircle2,
+  ChevronDown,
+  ChevronRight,
   Database,
   Pencil,
   Plus,
@@ -24,8 +27,10 @@ import { useAuth } from '@/modules/auth/useAuth'
 import { useSync } from '@/offline/useSync'
 import {
   createUser,
+  fetchAuditLogs,
   fetchUsers,
   updateUser,
+  type AuditLogItem,
   type UserCreatePayload,
   type UserRoleCode,
   type UserUpdatePayload,
@@ -39,6 +44,262 @@ const ROLE_OPTIONS: { value: UserRoleCode; label: string; description: string }[
   { value: 'STAFF', label: 'Inventory Staff', description: 'Stock adjustments & delivery receipts' },
   { value: 'VIEWER', label: 'Viewer', description: 'Read-only inventory & report access' },
 ]
+
+function getActionBadge(action: string) {
+  switch (action) {
+    case 'LOGIN':
+      return <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-700">LOGIN</Badge>
+    case 'LOGOUT':
+      return <Badge variant="outline" className="border-slate-300 bg-slate-50 text-slate-700">LOGOUT</Badge>
+    case 'LOGIN_FAILED':
+      return <Badge variant="outline" className="border-rose-300 bg-rose-50 text-rose-700">LOGIN_FAILED</Badge>
+    case 'CREATED':
+      return <Badge variant="outline" className="border-blue-300 bg-blue-50 text-blue-700">CREATED</Badge>
+    case 'STATUS_CHANGED':
+      return <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700">STATUS_CHANGED</Badge>
+    case 'DELETED':
+      return <Badge variant="outline" className="border-rose-300 bg-rose-50 text-rose-700">DELETED</Badge>
+    default:
+      return <Badge variant="outline" className="border-slate-300 bg-slate-50 text-slate-700">{action}</Badge>
+  }
+}
+
+interface AuditLogRowProps {
+  log: AuditLogItem
+  isExpanded: boolean
+  onToggleExpand: (id: string) => void
+}
+
+function AuditLogRow({ log, isExpanded, onToggleExpand }: AuditLogRowProps) {
+  const hasChanges = Boolean(log.changes && typeof log.changes === 'object' && Object.keys(log.changes).length > 0)
+
+  return (
+    <React.Fragment>
+      <tr className="hover:bg-slate-50/75 transition-colors">
+        <td className="px-6 py-3.5 whitespace-nowrap">
+          <div className="text-slate-900 font-medium">{new Date(log.created_at).toLocaleString()}</div>
+          <Badge
+            variant="secondary"
+            className={
+              log.source === 'DJANGO_ADMIN'
+                ? 'bg-purple-100 text-purple-800 text-[10px]'
+                : 'bg-slate-100 text-slate-700 text-[10px]'
+            }
+          >
+            {log.source === 'DJANGO_ADMIN' ? 'DJANGO /admin/' : 'REST API'}
+          </Badge>
+        </td>
+        <td className="px-6 py-3.5">
+          <div className="font-semibold text-slate-900">{log.actor_username}</div>
+          <div className="text-[11px] text-slate-400">{log.ip_address || 'internal'}</div>
+        </td>
+        <td className="px-6 py-3.5">{getActionBadge(log.action)}</td>
+        <td className="px-6 py-3.5">
+          <span className="font-medium text-slate-800">{log.entity_type}</span>
+          <div className="text-[10px] text-slate-400 truncate max-w-[120px]">{log.entity_id}</div>
+        </td>
+        <td className="px-6 py-3.5 font-sans">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-slate-700 text-xs font-normal">{log.summary}</span>
+            {hasChanges && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-[11px] gap-1 text-blue-600 hover:text-blue-800"
+                onClick={() => onToggleExpand(log.id)}
+              >
+                {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                Diff
+              </Button>
+            )}
+          </div>
+        </td>
+      </tr>
+      {isExpanded && hasChanges && (
+        <tr className="bg-slate-50/90">
+          <td colSpan={5} className="px-8 py-3">
+            <div className="rounded-md border border-slate-200 bg-white p-3 font-mono text-[11px] text-slate-800 shadow-xs">
+              <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                Captured Field Modifications / Snapshot:
+              </div>
+              <pre className="overflow-x-auto whitespace-pre-wrap">
+                {JSON.stringify(log.changes, null, 2)}
+              </pre>
+            </div>
+          </td>
+        </tr>
+      )}
+    </React.Fragment>
+  )
+}
+
+interface AuditLogSectionProps {
+  logs: AuditLogItem[]
+  totalCount: number
+  page: number
+  setPage: (p: number) => void
+  isLoading: boolean
+  error: Error | null
+  onRetry: () => void
+  search: string
+  setSearch: (v: string) => void
+  actionFilter: string
+  setActionFilter: (v: string) => void
+  sourceFilter: string
+  setSourceFilter: (v: string) => void
+}
+
+function AuditLogSection({
+  logs,
+  totalCount,
+  page,
+  setPage,
+  isLoading,
+  error,
+  onRetry,
+  search,
+  setSearch,
+  actionFilter,
+  setActionFilter,
+  sourceFilter,
+  setSourceFilter,
+}: AuditLogSectionProps) {
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const maxPages = Math.max(1, Math.ceil(totalCount / 25))
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+              <Input
+                placeholder="Search audit trail by actor, entity ID, or summary..."
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value)
+                  setPage(1)
+                }}
+                className="pl-9"
+              />
+            </div>
+            <select
+              value={actionFilter}
+              onChange={(e) => {
+                setActionFilter(e.target.value)
+                setPage(1)
+              }}
+              className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700"
+            >
+              <option value="">All Actions</option>
+              <option value="LOGIN">User Login</option>
+              <option value="LOGOUT">User Logout</option>
+              <option value="LOGIN_FAILED">Login Failed</option>
+              <option value="CREATED">Record Created</option>
+              <option value="UPDATED">Record Updated</option>
+              <option value="STATUS_CHANGED">Status / Role Changed</option>
+              <option value="DELETED">Record Deleted</option>
+            </select>
+            <select
+              value={sourceFilter}
+              onChange={(e) => {
+                setSourceFilter(e.target.value)
+                setPage(1)
+              }}
+              className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700"
+            >
+              <option value="">All Sources</option>
+              <option value="API">API Gateway</option>
+              <option value="DJANGO_ADMIN">Django /admin/</option>
+            </select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {error ? (
+        <div className="flex items-center justify-between rounded-md border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
+            <span>{error.message}</span>
+          </div>
+          <Button variant="outline" size="sm" onClick={onRetry}>
+            Retry
+          </Button>
+        </div>
+      ) : (
+        <Card>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-slate-200 bg-slate-50 text-xs font-semibold text-slate-500 uppercase">
+                <tr>
+                  <th className="px-6 py-3">Timestamp & Source</th>
+                  <th className="px-6 py-3">Actor & IP</th>
+                  <th className="px-6 py-3">Action</th>
+                  <th className="px-6 py-3">Target Entity</th>
+                  <th className="px-6 py-3">Summary & Details</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200 font-mono text-xs">
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-slate-500 font-sans text-sm">
+                      Loading audit events...
+                    </td>
+                  </tr>
+                ) : logs.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-12 text-center font-sans">
+                      <Activity className="mx-auto mb-2 h-8 w-8 text-slate-400" />
+                      <p className="text-sm font-semibold text-slate-900">No matching audit events recorded</p>
+                    </td>
+                  </tr>
+                ) : (
+                  logs.map((log) => (
+                    <AuditLogRow
+                      key={log.id}
+                      log={log}
+                      isExpanded={expandedId === log.id}
+                      onToggleExpand={(id) => setExpandedId((prev) => (prev === id ? null : id))}
+                    />
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          {totalCount > 25 && (
+            <div className="flex items-center justify-between border-t border-slate-200 px-6 py-3 text-xs text-slate-600 font-sans">
+              <span>
+                Page {page} of {maxPages} ({totalCount} total events)
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  disabled={page <= 1}
+                  onClick={() => setPage(page - 1)}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  disabled={page >= maxPages}
+                  onClick={() => setPage(page + 1)}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
+    </div>
+  )
+}
+
 
 function SystemDiagnosticsGrid({ currentUser }: { currentUser: UserProfile | null }) {
   const { isOnline, pendingCount, rejectedCount, isSyncing, lastSyncTime, syncNow } = useSync()
@@ -432,8 +693,13 @@ function UserFormModal({
 export function SettingsView() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
+  const [activeTab, setActiveTab] = useState<'users' | 'audit'>('users')
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('')
+  const [auditSearch, setAuditSearch] = useState('')
+  const [auditActionFilter, setAuditActionFilter] = useState('')
+  const [auditSourceFilter, setAuditSourceFilter] = useState('')
+  const [auditPage, setAuditPage] = useState(1)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
@@ -448,6 +714,7 @@ export function SettingsView() {
 
   const handleMutationSuccess = () => {
     void queryClient.invalidateQueries({ queryKey: ['users'] })
+    void queryClient.invalidateQueries({ queryKey: ['audit-logs'] })
     closeModal()
   }
 
@@ -458,7 +725,19 @@ export function SettingsView() {
         search: search.trim() || undefined,
         role: roleFilter || undefined,
       }),
-    enabled: canManageUsers,
+    enabled: canManageUsers && activeTab === 'users',
+  })
+
+  const auditQuery = useQuery({
+    queryKey: ['audit-logs', { auditSearch, auditActionFilter, auditSourceFilter, auditPage }],
+    queryFn: () =>
+      fetchAuditLogs({
+        search: auditSearch.trim() || undefined,
+        action: auditActionFilter || undefined,
+        source: auditSourceFilter || undefined,
+        page: auditPage,
+      }),
+    enabled: canManageUsers && activeTab === 'audit',
   })
 
   const createMutation = useMutation({
@@ -482,10 +761,10 @@ export function SettingsView() {
             System Settings & Access Control
           </h2>
           <p className="text-sm text-slate-500">
-            Platform diagnostics, offline synchronization state, and role-based user administration.
+            Platform diagnostics, offline synchronization state, user administration, and system audit logs.
           </p>
         </div>
-        {canManageUsers && (
+        {canManageUsers && activeTab === 'users' && (
           <Button
             onClick={() => {
               setEditingUser(null)
@@ -504,51 +783,98 @@ export function SettingsView() {
 
       {canManageUsers ? (
         <div className="space-y-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                  <Input
-                    placeholder="Search users by username, name, or email..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="pl-9"
-                  />
-                </div>
-                <select
-                  value={roleFilter}
-                  onChange={(e) => setRoleFilter(e.target.value)}
-                  className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700"
-                >
-                  <option value="">All Roles</option>
-                  {ROLE_OPTIONS.map((r) => (
-                    <option key={r.value} value={r.value}>
-                      {r.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="flex border-b border-slate-200">
+            <button
+              type="button"
+              onClick={() => setActiveTab('users')}
+              className={`flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-semibold transition-colors ${
+                activeTab === 'users'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <Users className="h-4 w-4" />
+              <span>User Directory</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('audit')}
+              className={`flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-semibold transition-colors ${
+                activeTab === 'audit'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <Activity className="h-4 w-4" />
+              <span>Security & Admin Audit Trail</span>
+            </button>
+          </div>
 
-          <UserDirectoryTable
-            users={usersQuery.data?.results ?? []}
-            currentUserId={user?.id}
-            isLoading={usersQuery.isLoading}
-            error={usersQuery.error instanceof Error ? usersQuery.error : null}
-            onRetry={() => void usersQuery.refetch()}
-            onEdit={(targetUser) => {
-              setEditingUser(targetUser)
-              setFormError(null)
-              setIsModalOpen(true)
-            }}
-          />
+          {activeTab === 'users' ? (
+            <div className="space-y-4">
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                      <Input
+                        placeholder="Search users by username, name, or email..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="pl-9"
+                      />
+                    </div>
+                    <select
+                      value={roleFilter}
+                      onChange={(e) => setRoleFilter(e.target.value)}
+                      className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700"
+                    >
+                      <option value="">All Roles</option>
+                      {ROLE_OPTIONS.map((r) => (
+                        <option key={r.value} value={r.value}>
+                          {r.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <UserDirectoryTable
+                users={usersQuery.data?.results ?? []}
+                currentUserId={user?.id}
+                isLoading={usersQuery.isLoading}
+                error={usersQuery.error instanceof Error ? usersQuery.error : null}
+                onRetry={() => void usersQuery.refetch()}
+                onEdit={(targetUser) => {
+                  setEditingUser(targetUser)
+                  setFormError(null)
+                  setIsModalOpen(true)
+                }}
+              />
+            </div>
+          ) : (
+            <AuditLogSection
+              logs={auditQuery.data?.results ?? []}
+              totalCount={auditQuery.data?.count ?? 0}
+              page={auditPage}
+              setPage={setAuditPage}
+              isLoading={auditQuery.isLoading}
+              error={auditQuery.error instanceof Error ? auditQuery.error : null}
+              onRetry={() => void auditQuery.refetch()}
+              search={auditSearch}
+              setSearch={setAuditSearch}
+              actionFilter={auditActionFilter}
+              setActionFilter={setAuditActionFilter}
+              sourceFilter={auditSourceFilter}
+              setSourceFilter={setAuditSourceFilter}
+            />
+          )}
         </div>
       ) : (
         <Card>
           <CardContent className="p-6 text-sm text-slate-600">
-            User account provisioning and role assignment are restricted to{' '}
+            User account provisioning and audit trail inspection are restricted to{' '}
             <span className="font-semibold text-slate-900">Administrator</span> accounts.
           </CardContent>
         </Card>

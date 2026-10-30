@@ -91,3 +91,42 @@ export async function updateUser(
   }
   return res.json()
 }
+
+export interface AuditLogItem {
+  id: string
+  actor_username: string
+  action: string
+  action_display: string
+  entity_type: string
+  entity_id: string
+  summary: string
+  changes: Record<string, any>
+  ip_address: string
+  source: 'API' | 'DJANGO_ADMIN' | string
+  created_at: string
+}
+
+export async function fetchAuditLogs(params?: {
+  search?: string
+  action?: string
+  source?: string
+  entity_type?: string
+  page?: number
+}): Promise<{ count: number; results: AuditLogItem[] }> {
+  const query = new URLSearchParams()
+  if (params?.search) query.set('search', params.search)
+  if (params?.action) query.set('action', params.action)
+  if (params?.source) query.set('source', params.source)
+  if (params?.entity_type) query.set('entity_type', params.entity_type)
+  if (params?.page) query.set('page', String(params.page))
+
+  const res = await fetch(`/api/v1/auth/audit-logs/?${query.toString()}`, {
+    headers: getAuthHeaders(),
+  })
+  if (!res.ok) {
+    throw new Error(await parseApiError(res, 'Failed to load audit logs'))
+  }
+  const data = await res.json()
+  return Array.isArray(data) ? { count: data.length, results: data } : data
+}
+
