@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import {
   Activity,
   AlertCircle,
+  Building2,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
@@ -24,6 +25,8 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Input } from '@/components/ui/input'
 import type { UserProfile } from '@/modules/auth/types'
 import { useAuth } from '@/modules/auth/useAuth'
+import { createLocation, fetchLocations, updateLocation } from '@/modules/inventory/api'
+import type { Location } from '@/modules/inventory/types'
 import { useSync } from '@/offline/useSync'
 import {
   createUser,
@@ -536,6 +539,198 @@ function UserDirectoryTable({
   )
 }
 
+interface LocationFormModalProps {
+  editingLocation: Location | null
+  isSaving: boolean
+  formError: string | null
+  onClose: () => void
+  onSubmitCreate: (payload: { code: string; name: string; is_active: boolean }) => void
+  onSubmitUpdate: (id: string, payload: { code: string; name: string; is_active: boolean }) => void
+}
+
+function LocationFormModal({
+  editingLocation,
+  isSaving,
+  formError,
+  onClose,
+  onSubmitCreate,
+  onSubmitUpdate,
+}: LocationFormModalProps) {
+  const [code, setCode] = useState(editingLocation?.code ?? '')
+  const [name, setName] = useState(editingLocation?.name ?? '')
+  const [isActive, setIsActive] = useState(editingLocation?.is_active ?? true)
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const payload = { code: code.trim().toUpperCase(), name: name.trim(), is_active: isActive }
+    if (editingLocation) {
+      onSubmitUpdate(editingLocation.id, payload)
+      return
+    }
+    onSubmitCreate(payload)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-xs">
+      <Card className="w-full max-w-md shadow-xl">
+        <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100 pb-3">
+          <CardTitle className="text-lg font-bold text-slate-900">
+            {editingLocation ? `Edit Warehouse: ${editingLocation.code}` : 'Add Warehouse Location'}
+          </CardTitle>
+          <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </Button>
+        </CardHeader>
+        <form onSubmit={handleSubmit}>
+          <CardContent className="space-y-4 pt-4">
+            {formError && (
+              <div className="rounded-md bg-rose-50 p-3 text-xs font-medium text-rose-700">
+                {formError}
+              </div>
+            )}
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-slate-700">Location Code *</label>
+              <Input
+                placeholder="e.g. MAIN-WH or BAY-02"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-slate-700">Warehouse Name *</label>
+              <Input
+                placeholder="e.g. Primary Storage Facility"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              <input
+                type="checkbox"
+                id="location_is_active"
+                checked={isActive}
+                onChange={(e) => setIsActive(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-blue-600"
+              />
+              <label htmlFor="location_is_active" className="text-xs font-medium text-slate-700">
+                Active warehouse location
+              </label>
+            </div>
+          </CardContent>
+          <CardFooter className="flex justify-end gap-2 border-t border-slate-100 pt-3">
+            <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isSaving}>
+              {isSaving ? 'Saving...' : editingLocation ? 'Save Changes' : 'Create Location'}
+            </Button>
+          </CardFooter>
+        </form>
+      </Card>
+    </div>
+  )
+}
+
+interface LocationDirectoryTableProps {
+  locations: Location[]
+  isLoading: boolean
+  error: Error | null
+  onRetry: () => void
+  onEdit: (loc: Location) => void
+}
+
+function LocationDirectoryTable({
+  locations,
+  isLoading,
+  error,
+  onRetry,
+  onEdit,
+}: LocationDirectoryTableProps) {
+  if (error) {
+    return (
+      <div className="flex items-center justify-between rounded-md border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+        <div className="flex items-center gap-2">
+          <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
+          <span>{error.message}</span>
+        </div>
+        <Button variant="outline" size="sm" onClick={onRetry}>
+          Retry
+        </Button>
+      </div>
+    )
+  }
+
+  return (
+    <Card>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-sm">
+          <thead className="border-b border-slate-200 bg-slate-50 text-xs font-semibold text-slate-500 uppercase">
+            <tr>
+              <th className="px-6 py-3">Location Code</th>
+              <th className="px-6 py-3">Warehouse Name</th>
+              <th className="px-6 py-3">Status</th>
+              <th className="px-6 py-3">Created</th>
+              <th className="px-6 py-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-200">
+            {isLoading ? (
+              <tr>
+                <td colSpan={5} className="py-8 text-center text-slate-500">
+                  Loading warehouse locations...
+                </td>
+              </tr>
+            ) : locations.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="py-12 text-center">
+                  <Building2 className="mx-auto mb-2 h-8 w-8 text-slate-400" />
+                  <p className="text-sm font-semibold text-slate-900">No warehouse locations configured</p>
+                </td>
+              </tr>
+            ) : (
+              locations.map((loc) => (
+                <tr key={loc.id} className="hover:bg-slate-50/75 transition-colors">
+                  <td className="px-6 py-4 font-mono font-semibold text-slate-900">{loc.code}</td>
+                  <td className="px-6 py-4 font-medium text-slate-800">{loc.name}</td>
+                  <td className="px-6 py-4">
+                    {loc.is_active ? (
+                      <Badge variant="outline" className="gap-1 border-emerald-300 bg-emerald-50 text-emerald-700">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Active
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary" className="gap-1 text-slate-500">
+                        <XCircle className="h-3 w-3" />
+                        Inactive
+                      </Badge>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 text-xs text-slate-500">
+                    {new Date(loc.created_at).toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 gap-1 text-slate-600 hover:text-blue-700"
+                      onClick={() => onEdit(loc)}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      Edit
+                    </Button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  )
+}
+
 interface UserFormModalProps {
   editingUser: UserProfile | null
   currentUserId?: string
@@ -693,7 +888,7 @@ function UserFormModal({
 export function SettingsView() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
-  const [activeTab, setActiveTab] = useState<'users' | 'audit'>('users')
+  const [activeTab, setActiveTab] = useState<'users' | 'locations' | 'audit'>('users')
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('')
   const [auditSearch, setAuditSearch] = useState('')
@@ -704,6 +899,11 @@ export function SettingsView() {
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
 
+  // Location modal & state
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false)
+  const [editingLocation, setEditingLocation] = useState<Location | null>(null)
+  const [locationFormError, setLocationFormError] = useState<string | null>(null)
+
   const canManageUsers = Boolean(user?.can_manage_users)
 
   const closeModal = () => {
@@ -712,10 +912,22 @@ export function SettingsView() {
     setFormError(null)
   }
 
+  const closeLocationModal = () => {
+    setIsLocationModalOpen(false)
+    setEditingLocation(null)
+    setLocationFormError(null)
+  }
+
   const handleMutationSuccess = () => {
     void queryClient.invalidateQueries({ queryKey: ['users'] })
     void queryClient.invalidateQueries({ queryKey: ['audit-logs'] })
     closeModal()
+  }
+
+  const handleLocationSuccess = () => {
+    void queryClient.invalidateQueries({ queryKey: ['inventory', 'locations'] })
+    void queryClient.invalidateQueries({ queryKey: ['audit-logs'] })
+    closeLocationModal()
   }
 
   const usersQuery = useQuery({
@@ -726,6 +938,12 @@ export function SettingsView() {
         role: roleFilter || undefined,
       }),
     enabled: canManageUsers && activeTab === 'users',
+  })
+
+  const locationsQuery = useQuery({
+    queryKey: ['inventory', 'locations'],
+    queryFn: fetchLocations,
+    enabled: canManageUsers && activeTab === 'locations',
   })
 
   const auditQuery = useQuery({
@@ -753,6 +971,19 @@ export function SettingsView() {
     onError: (err: Error) => setFormError(err.message),
   })
 
+  const createLocationMutation = useMutation({
+    mutationFn: createLocation,
+    onSuccess: handleLocationSuccess,
+    onError: (err: Error) => setLocationFormError(err.message),
+  })
+
+  const updateLocationMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: { code?: string; name?: string; is_active?: boolean } }) =>
+      updateLocation(id, payload),
+    onSuccess: handleLocationSuccess,
+    onError: (err: Error) => setLocationFormError(err.message),
+  })
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -777,6 +1008,19 @@ export function SettingsView() {
             New User Account
           </Button>
         )}
+        {canManageUsers && activeTab === 'locations' && (
+          <Button
+            onClick={() => {
+              setEditingLocation(null)
+              setLocationFormError(null)
+              setIsLocationModalOpen(true)
+            }}
+            className="gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Add Warehouse Location
+          </Button>
+        )}
       </div>
 
       <SystemDiagnosticsGrid currentUser={user} />
@@ -798,6 +1042,18 @@ export function SettingsView() {
             </button>
             <button
               type="button"
+              onClick={() => setActiveTab('locations')}
+              className={`flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-semibold transition-colors ${
+                activeTab === 'locations'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <Building2 className="h-4 w-4" />
+              <span>Warehouses & Locations</span>
+            </button>
+            <button
+              type="button"
               onClick={() => setActiveTab('audit')}
               className={`flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-semibold transition-colors ${
                 activeTab === 'audit'
@@ -810,7 +1066,7 @@ export function SettingsView() {
             </button>
           </div>
 
-          {activeTab === 'users' ? (
+          {activeTab === 'users' && (
             <div className="space-y-4">
               <Card>
                 <CardContent className="p-4">
@@ -853,7 +1109,23 @@ export function SettingsView() {
                 }}
               />
             </div>
-          ) : (
+          )}
+
+          {activeTab === 'locations' && (
+            <LocationDirectoryTable
+              locations={locationsQuery.data ?? []}
+              isLoading={locationsQuery.isLoading}
+              error={locationsQuery.error instanceof Error ? locationsQuery.error : null}
+              onRetry={() => void locationsQuery.refetch()}
+              onEdit={(targetLoc) => {
+                setEditingLocation(targetLoc)
+                setLocationFormError(null)
+                setIsLocationModalOpen(true)
+              }}
+            />
+          )}
+
+          {activeTab === 'audit' && (
             <AuditLogSection
               logs={auditQuery.data?.results ?? []}
               totalCount={auditQuery.data?.count ?? 0}
@@ -874,7 +1146,7 @@ export function SettingsView() {
       ) : (
         <Card>
           <CardContent className="p-6 text-sm text-slate-600">
-            User account provisioning and audit trail inspection are restricted to{' '}
+            User account provisioning, warehouse management, and audit trail inspection are restricted to{' '}
             <span className="font-semibold text-slate-900">Administrator</span> accounts.
           </CardContent>
         </Card>
@@ -890,6 +1162,18 @@ export function SettingsView() {
           onClose={closeModal}
           onSubmitCreate={(payload) => createMutation.mutate(payload)}
           onSubmitUpdate={(id, payload) => updateMutation.mutate({ id, payload })}
+        />
+      )}
+
+      {isLocationModalOpen && (
+        <LocationFormModal
+          key={editingLocation?.id ?? 'create-loc'}
+          editingLocation={editingLocation}
+          isSaving={createLocationMutation.isPending || updateLocationMutation.isPending}
+          formError={locationFormError}
+          onClose={closeLocationModal}
+          onSubmitCreate={(payload) => createLocationMutation.mutate(payload)}
+          onSubmitUpdate={(id, payload) => updateLocationMutation.mutate({ id, payload })}
         />
       )}
     </div>

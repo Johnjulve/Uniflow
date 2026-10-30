@@ -17,6 +17,59 @@ export async function fetchLocations(): Promise<Location[]> {
   return data.results || data
 }
 
+export async function createLocation(payload: {
+  code: string
+  name: string
+  is_active?: boolean
+}): Promise<Location> {
+  const res = await fetch('/api/v1/inventory/locations/', {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}))
+    const details = errorData.error?.details
+    if (details && typeof details === 'object') {
+      const firstField = Object.values(details)[0]
+      if (typeof firstField === 'string') throw new Error(firstField)
+      if (Array.isArray(firstField) && typeof firstField[0] === 'string') {
+        throw new Error(firstField[0])
+      }
+    }
+    throw new Error(errorData.error?.message || errorData.detail || 'Failed to create location')
+  }
+  return res.json()
+}
+
+export async function updateLocation(
+  id: string,
+  payload: {
+    code?: string
+    name?: string
+    is_active?: boolean
+  }
+): Promise<Location> {
+  const res = await fetch(`/api/v1/inventory/locations/${id}/`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}))
+    const details = errorData.error?.details
+    if (details && typeof details === 'object') {
+      const firstField = Object.values(details)[0]
+      if (typeof firstField === 'string') throw new Error(firstField)
+      if (Array.isArray(firstField) && typeof firstField[0] === 'string') {
+        throw new Error(firstField[0])
+      }
+    }
+    throw new Error(errorData.error?.message || errorData.detail || 'Failed to update location')
+  }
+  return res.json()
+}
+
 export async function fetchStockBalances(params: {
   search?: string
   location?: string
