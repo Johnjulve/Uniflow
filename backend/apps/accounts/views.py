@@ -11,12 +11,14 @@ from rest_framework.views import APIView
 from apps.accounts.models import User
 from apps.accounts.permissions import IsAdminRole
 from apps.accounts.serializers import (
+    AuditLogSerializer,
     LoginRequestSerializer,
     LoginResponseSerializer,
     UserCreateSerializer,
     UserProfileSerializer,
     UserUpdateSerializer,
 )
+from apps.common.models import AuditLog
 
 
 class LoginView(APIView):
@@ -124,3 +126,21 @@ class UserViewSet(
         if self.action in ("update", "partial_update"):
             return UserUpdateSerializer
         return UserProfileSerializer
+
+
+@extend_schema_view(
+    list=extend_schema(description="List immutable audit trail events (Admin only).", tags=["Audit Logs"]),
+    retrieve=extend_schema(description="Retrieve single audit log entry (Admin only).", tags=["Audit Logs"]),
+)
+class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Administrator read-only endpoint for inspecting system and admin audit trail records.
+    """
+    queryset = AuditLog.objects.all().order_by("-created_at")
+    serializer_class = AuditLogSerializer
+    permission_classes = [IsAdminRole]
+    filterset_fields = ["action", "entity_type", "source", "actor_username"]
+    search_fields = ["actor_username", "summary", "entity_id", "entity_type"]
+    ordering_fields = ["created_at", "action", "source"]
+    ordering = ["-created_at"]
+

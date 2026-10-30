@@ -7,6 +7,31 @@ from rest_framework import serializers
 from rest_framework.authtoken.models import Token
 
 from apps.accounts.models import User, UserRole
+from apps.common.models import AuditLog
+
+
+class AuditLogSerializer(serializers.ModelSerializer):
+    """
+    Read-only serializer for immutable system and admin audit log entries.
+    """
+    action_display = serializers.CharField(source="get_action_display", read_only=True)
+
+    class Meta:
+        model = AuditLog
+        fields = [
+            "id",
+            "actor_username",
+            "action",
+            "action_display",
+            "entity_type",
+            "entity_id",
+            "summary",
+            "changes",
+            "ip_address",
+            "source",
+            "created_at",
+        ]
+        read_only_fields = fields
 
 
 class UserProfileSerializer(serializers.ModelSerializer):

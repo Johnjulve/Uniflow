@@ -4,12 +4,19 @@ URL routing for accounts, authentication, and user management endpoints.
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from apps.accounts.views import CurrentUserView, LoginView, LogoutView, UserViewSet
+from apps.accounts.views import (
+    AuditLogViewSet,
+    CurrentUserView,
+    LoginView,
+    LogoutView,
+    UserViewSet,
+)
 
 app_name = "accounts"
 
 router = DefaultRouter()
 router.register(r"users", UserViewSet, basename="user")
+router.register(r"audit-logs", AuditLogViewSet, basename="audit-log")
 
 urlpatterns = [
     path("login/", LoginView.as_view(), name="login"),
