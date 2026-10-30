@@ -1,17 +1,21 @@
 """
-Authentication and profile API views for accounts.
+Authentication, profile, and user management API views for accounts.
 """
-from drf_spectacular.utils import OpenApiResponse, extend_schema
-from rest_framework import status
+from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
+from rest_framework import mixins, status, viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.accounts.models import User
+from apps.accounts.permissions import IsAdminRole
 from apps.accounts.serializers import (
     LoginRequestSerializer,
     LoginResponseSerializer,
+    UserCreateSerializer,
     UserProfileSerializer,
+    UserUpdateSerializer,
 )
 
 
@@ -87,3 +91,36 @@ class CurrentUserView(APIView):
     def get(self, request, *args, **kwargs):
         serializer = UserProfileSerializer(request.user)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@extend_schema_view(
+    list=extend_schema(description="List user accounts with role and status filtering.", tags=["Users"]),
+    retrieve=extend_schema(description="Retrieve a single user account profile.", tags=["Users"]),
+    create=extend_schema(description="Provision a new user account (Admin only).", tags=["Users"]),
+    update=extend_schema(description="Update user account details, role, or status (Admin only).", tags=["Users"]),
+    partial_update=extend_schema(description="Partially update user account role, status, or password (Admin only).", tags=["Users"]),
+)
+class UserViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
+    viewsets.GenericViewSet,
+):
+    """
+    Administrator ViewSet for managing user accounts and role assignments.
+    Hard deletion is disabled to preserve audit and ledger foreign-key integrity.
+    """
+    queryset = User.objects.all().order_by("username")
+    permission_classes = [IsAdminRole]
+    filterset_fields = ["role", "is_active"]
+    search_fields = ["username", "email", "first_name", "last_name"]
+    ordering_fields = ["username", "role", "created_at", "date_joined"]
+    ordering = ["username"]
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return UserCreateSerializer
+        if self.action in ("update", "partial_update"):
+            return UserUpdateSerializer
+        return UserProfileSerializer
