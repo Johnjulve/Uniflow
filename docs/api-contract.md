@@ -117,22 +117,94 @@ Terminates session and clears cookies.
 Returns currently authenticated user profile and capability matrix.
 - **Response `200 OK`**
 
-#### `GET /api/v1/users/`
-List system users (Admin only).
-- **Query Params**: `page`, `page_size`, `search`, `role`, `is_active`
+#### `GET /api/v1/auth/users/`
+List system user accounts with role and active status filtering (Admin only).
+- **Query Params**: `search`, `role`, `is_active`
+- **Response `200 OK`**: Paginated array of `UserProfile` objects.
+
+#### `POST /api/v1/auth/users/`
+Provision a new user account (Admin only).
+- **Request Body**:
+  ```json
+  {
+    "username": "warehouse_lead",
+    "password": "InitialPassword123!",
+    "email": "lead@uniflow.local",
+    "first_name": "Marcus",
+    "last_name": "Vance",
+    "role": "MANAGER",
+    "is_active": true
+  }
+  ```
+- **Response `201 Created`**
+
+#### `PATCH /api/v1/auth/users/{id}/`
+Update user account role, active status, or credentials (Admin only).
+- **Guards**: Self-deactivation and self-demotion lockout prevention (returns `400 BAD_REQUEST`). Deactivating a user immediately purges and revokes all active auth tokens.
+- **Response `200 OK`**
+
+#### `GET /api/v1/auth/audit-logs/`
+Inspect immutable system and admin audit trail records (Admin only).
+- **Query Params**:
+  - `page` (integer, default: `1`)
+  - `search` (matches actor username, summary, entity ID, or entity type)
+  - `action` (`LOGIN`, `LOGOUT`, `LOGIN_FAILED`, `CREATED`, `UPDATED`, `STATUS_CHANGED`, `DELETED`)
+  - `source` (`API`, `DJANGO_ADMIN`)
+  - `entity_type` (`User`, `Category`, `Product`, `Supplier`, `PurchaseOrder`)
+- **Immutability**: Read-only endpoint; write methods (`POST`, `PUT`, `DELETE`) return `405 Method Not Allowed`. Bulk mutations on `AuditLog` are blocked at the database manager level.
+- **Response `200 OK`**:
+  ```json
+  {
+    "count": 48,
+    "next": null,
+    "previous": null,
+    "results": [
+      {
+        "id": "7f1e948c-...",
+        "actor_username": "admin",
+        "action": "STATUS_CHANGED",
+        "action_display": "Status / Role Changed",
+        "entity_type": "User",
+        "entity_id": "3a12b4...",
+        "summary": "Updated User 'staffuser' (is_active, role)",
+        "changes": {
+          "is_active": {"from": "True", "to": "False"},
+          "role": {"from": "STAFF", "to": "VIEWER"}
+        },
+        "ip_address": "127.0.0.1",
+        "source": "API",
+        "created_at": "2026-10-30T15:42:00Z"
+      }
+    ]
+  }
+  ```
 
 ---
 
 ### 4.2 Product Catalog
 
-#### `GET /api/v1/categories/`
-List hierarchical categories.
-- **Response `200 OK`**: List of categories with optional nested `children`.
+#### `GET /api/v1/catalog/categories/`
+List hierarchical categories with annotated product counts.
+- **Response `200 OK`**: List of categories with `product_count` annotation.
 
-#### `POST /api/v1/categories/`
-Create a new category.
+#### `POST /api/v1/catalog/categories/`
+Create a new product category.
+- **Request Body**:
+  ```json
+  {
+    "name": "Fasteners & Bolts",
+    "description": "Industrial fasteners and hardware",
+    "is_active": true
+  }
+  ```
+- **Response `201 Created`**
 
-#### `GET /api/v1/products/`
+#### `DELETE /api/v1/catalog/categories/{id}/`
+Delete an unused category.
+- **Safety Invariant**: Only categories with zero associated products (`products_count === 0`) can be deleted. Attempting to delete a category that has existing products returns `400 Bad Request` with code `CATEGORY_IN_USE`.
+- **Response `204 No Content`**
+
+#### `GET /api/v1/catalog/products/`
 List products with filtering, search, and inventory summaries.
 - **Query Params**:
   - `page`, `page_size`
