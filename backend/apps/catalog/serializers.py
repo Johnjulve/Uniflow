@@ -4,7 +4,9 @@ Serializers for the catalog domain (Category, Product).
 
 from decimal import Decimal
 
+from django.db import IntegrityError
 from django.db.models import Sum
+from django.utils.text import slugify
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
@@ -43,7 +45,31 @@ class CategorySerializer(serializers.ModelSerializer):
         ]
 
     def get_products_count(self, obj: Category) -> int:
-        return obj.products.filter(archived_at__isnull=True).count()
+        annotated = getattr(obj, "annotated_products_count", None)
+        if annotated is not None:
+            return int(annotated)
+        return obj.products.count()
+
+    def validate_name(self, value: str) -> str:
+        trimmed = value.strip()
+        slug_candidate = slugify(trimmed)
+        if not trimmed or not slug_candidate:
+            raise serializers.ValidationError("Category name must contain valid alphanumeric characters.")
+        instance = getattr(self, "instance", None)
+        existing = Category.objects.filter(name__iexact=trimmed) | Category.objects.filter(slug=slug_candidate)
+        if instance:
+            existing = existing.exclude(id=instance.id)
+        if existing.exists():
+            raise serializers.ValidationError("A category with this name already exists.")
+        return trimmed
+
+    def create(self, validated_data: dict) -> Category:
+        try:
+            return super().create(validated_data)
+        except IntegrityError as exc:
+            raise serializers.ValidationError(
+                {"name": "A category with this name already exists."}
+            ) from exc
 
 
 class CategoryTreeSerializer(serializers.ModelSerializer):
@@ -111,6 +137,9 @@ class ProductSerializer(serializers.ModelSerializer):
         ]
 
     def get_total_on_hand(self, obj: Product) -> str:
+        annotated = getattr(obj, "annotated_total_on_hand", None)
+        if annotated is not None:
+            return str(annotated)
         total = obj.stock_balances.aggregate(total=Sum("current_quantity"))["total"]
         return str(total or Decimal("0.00"))
 
@@ -118,7 +147,6 @@ class ProductSerializer(serializers.ModelSerializer):
         trimmed = value.strip()
         if not trimmed:
             raise serializers.ValidationError("SKU cannot be blank.")
-        # Ensure case-insensitive uniqueness
         instance = getattr(self, "instance", None)
         existing = Product.objects.filter(sku__iexact=trimmed)
         if instance:
