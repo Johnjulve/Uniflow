@@ -15,6 +15,7 @@ from rest_framework.authtoken.models import Token
 from apps.accounts.models import User
 from apps.catalog.models import Category, Product
 from apps.common.models import AuditAction, AuditLog
+from apps.inventory.models import Location
 from apps.purchasing.models import PurchaseOrder, Supplier
 
 logger = logging.getLogger(__name__)
@@ -35,6 +36,7 @@ AUDITED_FIELDS: dict[type, list[str]] = {
         "is_active",
         "archived_at",
     ],
+    Location: ["code", "name", "is_active"],
     Supplier: ["name", "contact_name", "email", "phone", "is_active"],
     PurchaseOrder: ["order_reference", "status", "expected_date"],
 }
@@ -143,7 +145,7 @@ def _snapshot_instance(instance, fields: list[str]) -> dict[str, Any]:
 
 
 def _get_entity_label(instance) -> str:
-    for attr in ("username", "sku", "name", "order_reference"):
+    for attr in ("username", "sku", "code", "name", "order_reference"):
         val = getattr(instance, attr, None)
         if val:
             return str(val)
@@ -168,6 +170,7 @@ def _compute_model_diff(sender, instance, after: dict[str, Any]) -> dict[str, An
 @receiver(pre_save, sender=User)
 @receiver(pre_save, sender=Category)
 @receiver(pre_save, sender=Product)
+@receiver(pre_save, sender=Location)
 @receiver(pre_save, sender=Supplier)
 @receiver(pre_save, sender=PurchaseOrder)
 def capture_pre_save_snapshot(sender, instance, **kwargs):
@@ -184,6 +187,7 @@ def capture_pre_save_snapshot(sender, instance, **kwargs):
 @receiver(post_save, sender=User)
 @receiver(post_save, sender=Category)
 @receiver(post_save, sender=Product)
+@receiver(post_save, sender=Location)
 @receiver(post_save, sender=Supplier)
 @receiver(post_save, sender=PurchaseOrder)
 def log_model_save(sender, instance, created: bool, **kwargs):
@@ -215,6 +219,7 @@ def log_model_save(sender, instance, created: bool, **kwargs):
 @receiver(post_delete, sender=User)
 @receiver(post_delete, sender=Category)
 @receiver(post_delete, sender=Product)
+@receiver(post_delete, sender=Location)
 @receiver(post_delete, sender=Supplier)
 @receiver(post_delete, sender=PurchaseOrder)
 def log_model_delete(sender, instance, **kwargs):
@@ -296,6 +301,6 @@ class AuditLogAdmin(admin.ModelAdmin):
         return False
 
 
-for _domain_model in (User, Category, Product, Supplier, PurchaseOrder):
+for _domain_model in (User, Category, Product, Location, Supplier, PurchaseOrder):
     if _domain_model not in admin.site._registry:
         admin.site.register(_domain_model)
