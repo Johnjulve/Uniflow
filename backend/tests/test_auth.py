@@ -1,5 +1,5 @@
 """
-Automated tests for authentication endpoints (login, logout, me).
+Automated tests for authentication (login, logout, me) and admin user management endpoints.
 """
 import pytest
 from django.urls import reverse
@@ -17,7 +17,7 @@ def api_client():
 
 @pytest.fixture
 def regular_user(db):
-    user = User.objects.create_user(
+    return User.objects.create_user(
         username="staffuser",
         email="staff@uniflow.local",
         password="ValidPassword123!",
@@ -25,12 +25,11 @@ def regular_user(db):
         last_name="Member",
         role=UserRole.STAFF,
     )
-    return user
 
 
 @pytest.fixture
 def admin_user(db):
-    user = User.objects.create_user(
+    return User.objects.create_user(
         username="adminuser",
         email="admin@uniflow.local",
         password="AdminPassword123!",
@@ -38,7 +37,6 @@ def admin_user(db):
         last_name="Admin",
         role=UserRole.ADMIN,
     )
-    return user
 
 
 @pytest.mark.django_db
@@ -113,6 +111,83 @@ def test_logout_revokes_token(api_client, regular_user):
     assert response.status_code == status.HTTP_200_OK
     assert not Token.objects.filter(user=regular_user).exists()
 
-    # Subsequent request with old token is rejected
     me_response = api_client.get(reverse("auth:me"))
     assert me_response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.django_db
+def test_admin_can_list_and_create_users(api_client, admin_user, regular_user):
+    token = Token.objects.create(user=admin_user)
+    api_client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+
+    list_url = reverse("auth:user-list")
+    list_res = api_client.get(list_url)
+    assert list_res.status_code == status.HTTP_200_OK
+    results = list_res.data.get("results", list_res.data)
+    assert len(results) >= 2
+
+    create_res = api_client.post(
+        list_url,
+        {
+            "username": "manager01",
+            "password": "StrongPassword123!",
+            "email": "Manager@Uniflow.local",
+            "first_name": "Dana",
+            "last_name": "Lead",
+            "role": UserRole.MANAGER,
+            "is_active": True,
+        },
+        format="json",
+    )
+    assert create_res.status_code == status.HTTP_201_CREATED
+    assert create_res.data["username"] == "manager01"
+    assert create_res.data["email"] == "manager@uniflow.local"
+    assert create_res.data["role"] == UserRole.MANAGER
+    assert create_res.data["can_manage_purchasing"] is True
+
+
+@pytest.mark.django_db
+def test_non_admin_cannot_access_user_management(api_client, regular_user):
+    token = Token.objects.create(user=regular_user)
+    api_client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+
+    url = reverse("auth:user-list")
+    res = api_client.get(url)
+    assert res.status_code == status.HTTP_403_FORBIDDEN
+
+
+@pytest.mark.django_db
+def test_admin_deactivate_user_revokes_token_and_prevents_self_lockout(
+    api_client, admin_user, regular_user
+):
+    admin_token = Token.objects.create(user=admin_user)
+    staff_token = Token.objects.create(user=regular_user)
+    api_client.credentials(HTTP_AUTHORIZATION=f"Token {admin_token.key}")
+
+    # Deactivating staff user succeeds and deletes their active token
+    staff_detail_url = reverse("auth:user-detail", kwargs={"pk": regular_user.id})
+    patch_res = api_client.patch(
+        staff_detail_url,
+        {"is_active": False, "role": UserRole.VIEWER},
+        format="json",
+    )
+    assert patch_res.status_code == status.HTTP_200_OK
+    assert patch_res.data["is_active"] is False
+    assert patch_res.data["role"] == UserRole.VIEWER
+    assert not Token.objects.filter(key=staff_token.key).exists()
+
+    # Admin attempting to deactivate or demote themselves is rejected
+    admin_detail_url = reverse("auth:user-detail", kwargs={"pk": admin_user.id})
+    self_deactivate_res = api_client.patch(
+        admin_detail_url,
+        {"is_active": False},
+        format="json",
+    )
+    assert self_deactivate_res.status_code == status.HTTP_400_BAD_REQUEST
+
+    self_demote_res = api_client.patch(
+        admin_detail_url,
+        {"role": UserRole.STAFF},
+        format="json",
+    )
+    assert self_demote_res.status_code == status.HTTP_400_BAD_REQUEST
