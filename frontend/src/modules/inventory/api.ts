@@ -1,4 +1,11 @@
-import type { Location, StockAdjustmentPayload, StockBalance, StockMovement } from './types'
+import type {
+  Location,
+  StockAdjustmentPayload,
+  StockBalance,
+  StockMovement,
+  StockTransferPayload,
+  StockTransferResponse,
+} from './types'
 
 function getAuthHeaders(): HeadersInit {
   const token = localStorage.getItem('uniflow_auth_token')
@@ -115,6 +122,30 @@ export async function recordStockAdjustment(payload: StockAdjustmentPayload): Pr
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}))
     const msg = errorData.detail || errorData.error?.message || 'Failed to record stock adjustment'
+    throw new Error(msg)
+  }
+  return res.json()
+}
+
+
+export async function recordStockTransfer(payload: StockTransferPayload): Promise<StockTransferResponse> {
+  const res = await fetch('/api/v1/inventory/transfers/', {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  })
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}))
+    const details = errorData.error?.details
+    if (details && typeof details === 'object') {
+      const firstField = Object.values(details)[0]
+      if (typeof firstField === 'string') throw new Error(firstField)
+      if (Array.isArray(firstField) && typeof firstField[0] === 'string') {
+        throw new Error(firstField[0])
+      }
+    }
+    const msg = errorData.detail || errorData.error?.message || 'Failed to record stock transfer'
     throw new Error(msg)
   }
   return res.json()

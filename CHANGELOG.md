@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Unit of Measure selector featuring standard presets (`unit`, `pcs`, `box`, `pack`, `set`, `pair`, `kg`, `g`, `liter`, `ml`, `meter`, `roll`) and custom unit persistence.
 - **Core Inventory Ledger & Purchasing**:
   - Append-only immutable `StockMovement` ledger with row-level locked atomic `StockBalance` projections.
+  - Inter-Warehouse Stock Transfer: Atomic dual-movement ledger transactions (`TRANSFER_OUT` + `TRANSFER_IN`) with deterministic deadlock-preventing UUID row locks, live on-hand source verification, and dedicated Transfer Modal with zero-net-valuation impact confirmation.
   - Purchase order lifecycle (`DRAFT`, `SUBMITTED`, `PARTIALLY_RECEIVED`, `RECEIVED`, `CANCELLED`) and intake receiving.
   - Horizontal left-to-right quantity stepper `[ - ] [ Qty ] [ + ]` for purchase order line items and intake delivery receiving (`Accept Now` and `Damaged`).
   - Idempotent offline synchronization protocol powered by Dexie IndexedDB and `sync_metadata` table.

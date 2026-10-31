@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, Boxes, History, Search, SlidersHorizontal } from 'lucide-react'
+import { AlertTriangle, ArrowRightLeft, Boxes, History, Search, SlidersHorizontal } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -11,9 +11,11 @@ import {
   fetchStockBalances,
   fetchStockMovements,
   recordStockAdjustment,
+  recordStockTransfer,
 } from './api'
 import { fetchProducts } from '@/modules/catalog/api'
 import { AdjustmentModal } from './AdjustmentModal'
+import { TransferModal } from './TransferModal'
 import type { StockBalance, StockMovement } from './types'
 
 export function InventoryView() {
@@ -26,6 +28,14 @@ export function InventoryView() {
   const [lowStockOnly, setLowStockOnly] = useState(false)
   const [selectedBalance, setSelectedBalance] = useState<StockBalance | null>(null)
   const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false)
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false)
+  const [transferDefaultProduct, setTransferDefaultProduct] = useState<{
+    id: string
+    sku: string
+    name: string
+    unit_of_measure: string
+  } | null>(null)
+  const [transferDefaultSourceLocationId, setTransferDefaultSourceLocationId] = useState('')
 
   const canManage = user?.can_manage_stock || user?.role === 'ADMIN' || user?.role === 'MANAGER'
 
@@ -81,6 +91,18 @@ export function InventoryView() {
     },
   })
 
+  // Transfer mutation
+  const transferMutation = useMutation({
+    mutationFn: recordStockTransfer,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'balances'] })
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'movements'] })
+      queryClient.invalidateQueries({ queryKey: ['catalog', 'products'] })
+      queryClient.invalidateQueries({ queryKey: ['reports'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    },
+  })
+
   const balances = balancesData?.results || []
   const movements = movementsData?.results || []
 
@@ -98,17 +120,32 @@ export function InventoryView() {
         {/* Actions & Tab Switcher */}
         <div className="flex flex-wrap items-center gap-3">
           {canManage && (
-            <Button
-              onClick={() => {
-                setSelectedBalance(null)
-                setIsAdjustModalOpen(true)
-              }}
-              className="gap-2 bg-blue-600 hover:bg-blue-700 text-white cursor-pointer shadow-xs"
-              size="sm"
-            >
-              <SlidersHorizontal className="h-4 w-4" />
-              <span>+ Record Opening / Adjust Stock</span>
-            </Button>
+            <>
+              <Button
+                onClick={() => {
+                  setSelectedBalance(null)
+                  setIsAdjustModalOpen(true)
+                }}
+                className="gap-2 bg-blue-600 hover:bg-blue-700 text-white cursor-pointer shadow-xs"
+                size="sm"
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+                <span>+ Record Opening / Adjust Stock</span>
+              </Button>
+              <Button
+                onClick={() => {
+                  setTransferDefaultProduct(null)
+                  setTransferDefaultSourceLocationId('')
+                  setIsTransferModalOpen(true)
+                }}
+                variant="outline"
+                className="gap-2 border-slate-300 hover:bg-slate-50 text-slate-700 cursor-pointer shadow-xs"
+                size="sm"
+              >
+                <ArrowRightLeft className="h-4 w-4 text-emerald-600" />
+                <span>Transfer Stock</span>
+              </Button>
+            </>
           )}
 
           <div className="flex items-center rounded-lg border border-slate-200 bg-white p-1 shadow-2xs">
@@ -259,7 +296,25 @@ export function InventoryView() {
                           )}
                         </td>
                         {canManage && (
-                          <td className="px-6 py-4 text-right">
+                          <td className="px-6 py-4 text-right space-x-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-1.5"
+                              onClick={() => {
+                                setTransferDefaultProduct({
+                                  id: b.product,
+                                  sku: b.product_sku,
+                                  name: b.product_name,
+                                  unit_of_measure: b.unit_of_measure,
+                                })
+                                setTransferDefaultSourceLocationId(b.location)
+                                setIsTransferModalOpen(true)
+                              }}
+                            >
+                              <ArrowRightLeft className="h-3.5 w-3.5 text-emerald-600" />
+                              <span>Transfer</span>
+                            </Button>
                             <Button
                               variant="outline"
                               size="sm"
@@ -390,6 +445,26 @@ export function InventoryView() {
           locations={locations}
           availableProducts={availableProducts}
           existingBalances={balances}
+        />
+      )}
+
+      {/* Inter-Warehouse Stock Transfer Modal */}
+      {isTransferModalOpen && (
+        <TransferModal
+          isOpen={isTransferModalOpen}
+          onClose={() => {
+            setIsTransferModalOpen(false)
+            setTransferDefaultProduct(null)
+            setTransferDefaultSourceLocationId('')
+          }}
+          onSave={async (payload) => {
+            await transferMutation.mutateAsync(payload)
+          }}
+          locations={locations}
+          availableProducts={availableProducts}
+          existingBalances={balances}
+          defaultProduct={transferDefaultProduct}
+          defaultSourceLocationId={transferDefaultSourceLocationId}
         />
       )}
     </div>

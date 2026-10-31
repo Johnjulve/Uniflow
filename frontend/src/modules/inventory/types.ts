@@ -49,3 +49,18 @@ export interface StockAdjustmentPayload {
   counted_quantity: string
   reason: string
 }
+
+export interface StockTransferPayload {
+  product: string
+  source_location: string
+  destination_location: string
+  quantity: string
+  reason?: string
+}
+
+export interface StockTransferResponse {
+  movement_out: StockMovement
+  movement_in: StockMovement
+  source_balance: StockBalance
+  destination_balance: StockBalance
+}
