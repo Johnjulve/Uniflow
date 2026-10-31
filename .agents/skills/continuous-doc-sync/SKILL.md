@@ -51,7 +51,7 @@ Before declaring any phase milestone complete:
 2. **Environment & Secrets**: Verify no database credentials, secret keys, or hardcoded localhost URLs are committed. Ensure `.env.example` has all needed environment variables.
 3. **Transactional Integrity**: Ensure every stock change mutation is wrapped in `transaction.atomic()` with appropriate row locking (`select_for_update()`).
 4. **Offline Queue Safety**: Confirm client operation IDs are generated once and preserved across retries; ensure server idempotency deduplicates replay requests.
-5. **Code Style & Metrics**: Verify functions adhere to the 30-line limit where practical, and no naked diffs or unhandled exceptions are present.
+5. **Code Style & Metrics**: Verify functions adhere to single-responsibility maintainability: low cognitive complexity, one abstraction level, no magic numbers, no scattered validation, and flat guard clauses keeping the happy path at the lowest indentation. Ensure no naked diffs or unhandled exceptions are present.
 
 ---
 
@@ -64,10 +64,10 @@ Before declaring any phase milestone complete:
 
 When a phase milestone in `Plan/Implementation.md` is completed and verified:
 1. **Pre-Verification**: Run backend tests (`pytest`), frontend checks (`npm run test`, `npm run build`), and verify migrations (`python manage.py makemigrations --check`).
-2. **Present Commit Instructions**: Present the proposed commit command for the user to review:
+2. **Present Commit Instructions**: Present proposed file-scoped commit commands for the user to review:
    ```bash
-   git add .
-   git commit -m "feat(phase-X): complete milestone - [description]"
+   git add <scoped-files>
+   git commit -m "feat(scope): concise summary"
    ```
-3. **Execute Only on User Consent**: Run the commit only when the user explicitly instructs (e.g. "Yes, commit them").
+3. **Execute Only on User Consent**: Run commits only when the user explicitly instructs.
 4. **Doc Sync**: Ensure `Plan/Implementation.md` reflects all completed checkmarks before finalizing the session.
