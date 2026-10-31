@@ -9,6 +9,7 @@ from apps.inventory.views import (
     StockAdjustmentView,
     StockBalanceViewSet,
     StockMovementViewSet,
+    StockTransferView,
 )
 
 app_name = "inventory"
@@ -20,4 +21,5 @@ router.register(r"movements", StockMovementViewSet, basename="movement")
 
 urlpatterns = router.urls + [
     path("adjustments/", StockAdjustmentView.as_view(), name="adjustment"),
+    path("transfers/", StockTransferView.as_view(), name="transfer"),
 ]

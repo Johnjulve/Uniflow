@@ -142,3 +142,41 @@ class StockAdjustmentResponseSerializer(serializers.Serializer):
 
     movement = StockMovementSerializer()
     balance = StockBalanceSerializer()
+
+
+class StockTransferRequestSerializer(serializers.Serializer):
+    """
+    Payload for inter-warehouse stock transfers.
+    """
+
+    product = serializers.PrimaryKeyRelatedField(
+        queryset=Product.objects.filter(archived_at__isnull=True)
+    )
+    source_location = serializers.PrimaryKeyRelatedField(
+        queryset=Location.objects.filter(is_active=True)
+    )
+    destination_location = serializers.PrimaryKeyRelatedField(
+        queryset=Location.objects.filter(is_active=True)
+    )
+    quantity = serializers.DecimalField(
+        max_digits=12, decimal_places=2, min_value=Decimal("0.01")
+    )
+    reason = serializers.CharField(required=False, allow_blank=True, max_length=255, trim_whitespace=True)
+
+    def validate(self, attrs):
+        if attrs["source_location"].id == attrs["destination_location"].id:
+            raise serializers.ValidationError(
+                {"destination_location": "Source and destination locations must be different."}
+            )
+        return attrs
+
+
+class StockTransferResponseSerializer(serializers.Serializer):
+    """
+    Response returned after recording an inter-warehouse transfer.
+    """
+
+    movement_out = StockMovementSerializer()
+    movement_in = StockMovementSerializer()
+    source_balance = StockBalanceSerializer()
+    destination_balance = StockBalanceSerializer()

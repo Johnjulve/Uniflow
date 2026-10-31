@@ -170,3 +170,73 @@ def test_stock_adjustment_by_staff_and_viewer_rejection(api_client, staff_user, 
     # Redundant second adjustment with identical count is rejected
     res_redundant = api_client.post(url, payload, format="json")
     assert res_redundant.status_code == status.HTTP_400_BAD_REQUEST
+
+
+@pytest.mark.django_db
+def test_stock_transfer_api_success(api_client, staff_user, location, product):
+    staff_token = Token.objects.create(user=staff_user)
+    dest_loc = Location.objects.create(code="DEST-WH", name="Destination Warehouse")
+
+    # Seed source balance
+    StockMovementService.record_movement(
+        product=product,
+        location=location,
+        movement_type=MovementType.OPENING_BALANCE,
+        quantity=Decimal("50.00"),
+        actor=staff_user,
+    )
+
+    url = reverse("inventory:transfer")
+    payload = {
+        "product": str(product.id),
+        "source_location": str(location.id),
+        "destination_location": str(dest_loc.id),
+        "quantity": "20.00",
+        "reason": "Replenishment transfer",
+    }
+
+    api_client.credentials(HTTP_AUTHORIZATION=f"Token {staff_token.key}")
+    res = api_client.post(url, payload, format="json")
+
+    assert res.status_code == status.HTTP_201_CREATED
+    assert res.data["movement_out"]["movement_type"] == "TRANSFER_OUT"
+    assert res.data["movement_out"]["quantity"] == "-20.00"
+    assert res.data["movement_in"]["movement_type"] == "TRANSFER_IN"
+    assert res.data["movement_in"]["quantity"] == "20.00"
+    assert res.data["source_balance"]["current_quantity"] == "30.00"
+    assert res.data["destination_balance"]["current_quantity"] == "20.00"
+
+
+@pytest.mark.django_db
+def test_stock_transfer_api_validation_errors(api_client, staff_user, location, product):
+    staff_token = Token.objects.create(user=staff_user)
+    api_client.credentials(HTTP_AUTHORIZATION=f"Token {staff_token.key}")
+
+    url = reverse("inventory:transfer")
+
+    # 1. Same source and destination
+    res_same = api_client.post(
+        url,
+        {
+            "product": str(product.id),
+            "source_location": str(location.id),
+            "destination_location": str(location.id),
+            "quantity": "10.00",
+        },
+        format="json",
+    )
+    assert res_same.status_code == status.HTTP_400_BAD_REQUEST
+
+    # 2. Zero or negative quantity
+    dest_loc = Location.objects.create(code="DEST-WH2", name="Destination Warehouse 2")
+    res_zero = api_client.post(
+        url,
+        {
+            "product": str(product.id),
+            "source_location": str(location.id),
+            "destination_location": str(dest_loc.id),
+            "quantity": "0.00",
+        },
+        format="json",
+    )
+    assert res_zero.status_code == status.HTTP_400_BAD_REQUEST

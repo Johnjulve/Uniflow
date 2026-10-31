@@ -4,6 +4,7 @@ REST API ViewSets and Views for the inventory domain:
 - StockBalanceViewSet: Read-only projection queries with low-stock filtering.
 - StockMovementViewSet: Read-only audit trail of immutable ledger transactions.
 - StockAdjustmentView: Cycle count discrepancy adjustment endpoint.
+- StockTransferView: Inter-warehouse stock transfer endpoint.
 """
 from decimal import Decimal
 
@@ -29,6 +30,8 @@ from apps.inventory.serializers import (
     StockAdjustmentResponseSerializer,
     StockBalanceSerializer,
     StockMovementSerializer,
+    StockTransferRequestSerializer,
+    StockTransferResponseSerializer,
 )
 from apps.inventory.services import StockMovementService
 
@@ -151,6 +154,61 @@ class StockAdjustmentView(APIView):
             {
                 "movement": StockMovementSerializer(movement).data,
                 "balance": StockBalanceSerializer(balance).data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class StockTransferView(APIView):
+    """
+    Record an atomic inter-warehouse transfer moving inventory between two locations.
+    """
+    permission_classes = [CanManageStock]
+
+    @extend_schema(
+        request=StockTransferRequestSerializer,
+        responses={
+            status.HTTP_201_CREATED: StockTransferResponseSerializer,
+            status.HTTP_400_BAD_REQUEST: OpenApiResponse(description="Invalid transfer request or insufficient source stock"),
+        },
+        description="Transfers stock from source location to destination location with zero net valuation impact.",
+        tags=["Inventory"],
+    )
+    def post(self, request, *args, **kwargs):
+        serializer = StockTransferRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        product = serializer.validated_data["product"]
+        source_loc = serializer.validated_data["source_location"]
+        dest_loc = serializer.validated_data["destination_location"]
+        qty = serializer.validated_data["quantity"]
+        reason = serializer.validated_data.get("reason", "")
+
+        try:
+            movement_out, movement_in = StockMovementService.transfer_stock(
+                product=product,
+                source_location=source_loc,
+                destination_location=dest_loc,
+                quantity=qty,
+                actor=request.user,
+                reason=reason,
+            )
+        except InventoryError as err:
+            raise ValidationError({"detail": str(err)}) from err
+
+        source_bal = StockBalance.objects.select_related("product", "product__category", "location").get(
+            product=product, location=source_loc
+        )
+        dest_bal = StockBalance.objects.select_related("product", "product__category", "location").get(
+            product=product, location=dest_loc
+        )
+
+        return Response(
+            {
+                "movement_out": StockMovementSerializer(movement_out).data,
+                "movement_in": StockMovementSerializer(movement_in).data,
+                "source_balance": StockBalanceSerializer(source_bal).data,
+                "destination_balance": StockBalanceSerializer(dest_bal).data,
             },
             status=status.HTTP_201_CREATED,
         )

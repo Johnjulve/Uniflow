@@ -192,3 +192,70 @@ def test_adjust_stock_identical_count_rejected(actor, location, product):
             reason="Redundant check",
         )
     assert "No adjustment required" in str(exc_info.value)
+
+
+@pytest.mark.django_db
+def test_transfer_stock_success(actor, location, product):
+    dest_location = Location.objects.create(code="STORE-FRONT", name="Store Front Retail")
+
+    # Initial stock at source location
+    StockMovementService.record_movement(
+        product=product,
+        location=location,
+        movement_type=MovementType.OPENING_BALANCE,
+        quantity=Decimal("100.00"),
+        actor=actor,
+    )
+
+    # Transfer 30 units from source to destination
+    move_out, move_in = StockMovementService.transfer_stock(
+        product=product,
+        source_location=location,
+        destination_location=dest_location,
+        quantity=Decimal("30.00"),
+        actor=actor,
+        reason="Replenish retail display",
+    )
+
+    assert move_out.movement_type == MovementType.TRANSFER_OUT
+    assert move_out.quantity == Decimal("-30.00")
+    assert move_out.source_doc_type == "STOCK_TRANSFER"
+
+    assert move_in.movement_type == MovementType.TRANSFER_IN
+    assert move_in.quantity == Decimal("30.00")
+    assert move_in.source_doc_type == "STOCK_TRANSFER"
+    assert move_in.source_doc_id == move_out.source_doc_id
+
+    # Verify balances
+    source_bal = StockBalance.objects.get(product=product, location=location)
+    dest_bal = StockBalance.objects.get(product=product, location=dest_location)
+
+    assert source_bal.current_quantity == Decimal("70.00")
+    assert dest_bal.current_quantity == Decimal("30.00")
+
+
+@pytest.mark.django_db
+def test_transfer_stock_insufficient_stock(actor, location, product):
+    dest_location = Location.objects.create(code="STORE-FRONT-2", name="Store Front 2")
+
+    with pytest.raises(InsufficientStockError):
+        StockMovementService.transfer_stock(
+            product=product,
+            source_location=location,
+            destination_location=dest_location,
+            quantity=Decimal("50.00"),
+            actor=actor,
+        )
+
+
+@pytest.mark.django_db
+def test_transfer_stock_identical_location_rejected(actor, location, product):
+    with pytest.raises(InvalidMovementError) as exc_info:
+        StockMovementService.transfer_stock(
+            product=product,
+            source_location=location,
+            destination_location=location,
+            quantity=Decimal("10.00"),
+            actor=actor,
+        )
+    assert "must be different" in str(exc_info.value)

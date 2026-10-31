@@ -146,3 +146,75 @@ class StockMovementService:
                 actor=actor,
                 reason=reason or f"Cycle count discrepancy: {delta} units",
             )
+
+    @classmethod
+    def transfer_stock(
+        cls,
+        *,
+        product: Product,
+        source_location: Location,
+        destination_location: Location,
+        quantity: Decimal,
+        actor,
+        reason: str = "",
+    ) -> tuple[StockMovement, StockMovement]:
+        """
+        Atomically transfer inventory between two storage locations.
+        Enforces:
+        - Source location and destination location must differ.
+        - Transfer quantity must be strictly greater than zero.
+        - Source location must hold sufficient stock (unless negative stock allowed).
+        - Generates linked paired movements: TRANSFER_OUT (-quantity) and TRANSFER_IN (+quantity).
+        - Preserves identical unit cost, guaranteeing zero net inventory valuation change.
+        """
+        qty = Decimal(str(quantity))
+        if qty <= Decimal("0.00"):
+            raise InvalidMovementError("Transfer quantity must be greater than zero.")
+
+        if source_location.id == destination_location.id:
+            raise InvalidMovementError("Source and destination locations must be different.")
+
+        transfer_group_id = uuid.uuid4()
+        now = timezone.now()
+        cost = product.purchase_cost
+        op_reason = reason.strip() or f"Transfer from {source_location.code} to {destination_location.code}"
+
+        with transaction.atomic():
+            # Acquire locks in deterministic order (by UUID) to prevent deadlock
+            loc_ids = sorted([source_location.id, destination_location.id])
+            for loc_id in loc_ids:
+                StockBalance.objects.select_for_update().get_or_create(
+                    product=product,
+                    location_id=loc_id,
+                    defaults={"current_quantity": Decimal("0.00")},
+                )
+
+            # Record TRANSFER_OUT from source
+            movement_out = cls.record_movement(
+                product=product,
+                location=source_location,
+                movement_type=MovementType.TRANSFER_OUT,
+                quantity=-qty,
+                actor=actor,
+                unit_cost=cost,
+                reason=op_reason,
+                source_doc_type="STOCK_TRANSFER",
+                source_doc_id=transfer_group_id,
+                effective_at=now,
+            )
+
+            # Record TRANSFER_IN to destination
+            movement_in = cls.record_movement(
+                product=product,
+                location=destination_location,
+                movement_type=MovementType.TRANSFER_IN,
+                quantity=qty,
+                actor=actor,
+                unit_cost=cost,
+                reason=op_reason,
+                source_doc_type="STOCK_TRANSFER",
+                source_doc_id=transfer_group_id,
+                effective_at=now,
+            )
+
+            return movement_out, movement_in
