@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import type { Location, StockAdjustmentPayload, StockBalance } from './types'
-import { AlertCircle, X, Scale } from 'lucide-react'
+import { AlertCircle, X, Scale, Minus, Plus } from 'lucide-react'
 
 interface AdjustmentModalProps {
   isOpen: boolean
@@ -218,15 +218,44 @@ export function AdjustmentModal({
                 <label className="text-xs font-semibold text-slate-700" htmlFor="adj-qty">
                   Physical Count Quantity *
                 </label>
-                <Input
-                  id="adj-qty"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={countedQty}
-                  onChange={(e) => setCountedQty(e.target.value)}
-                  required
-                />
+                <div className="flex items-center rounded-lg border border-slate-300 bg-white overflow-hidden focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-600/20">
+                  <button
+                    type="button"
+                    aria-label="Decrease quantity"
+                    onClick={() => {
+                      const curr = parseFloat(countedQty) || 0
+                      const next = Math.max(0, curr - 1)
+                      setCountedQty(next.toFixed(2))
+                    }}
+                    disabled={parseFloat(countedQty) <= 0 || isSubmitting}
+                    className="flex h-10 w-9 items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <Minus className="h-4 w-4" />
+                  </button>
+                  <input
+                    id="adj-qty"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={countedQty}
+                    onChange={(e) => setCountedQty(e.target.value)}
+                    className="h-10 w-full min-w-0 border-x border-slate-200 text-center font-mono font-semibold text-sm text-slate-800 focus:outline-hidden [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    required
+                  />
+                  <button
+                    type="button"
+                    aria-label="Increase quantity"
+                    onClick={() => {
+                      const curr = parseFloat(countedQty) || 0
+                      const next = curr + 1
+                      setCountedQty(next.toFixed(2))
+                    }}
+                    disabled={isSubmitting}
+                    className="flex h-10 w-9 items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
 
               <div className="rounded-lg border border-slate-200 p-3 bg-white text-center">
