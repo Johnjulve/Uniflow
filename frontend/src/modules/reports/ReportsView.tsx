@@ -5,7 +5,6 @@ import {
   Boxes,
   Calendar,
   CheckCircle2,
-  DollarSign,
   History,
   Layers,
   Loader2,
@@ -16,6 +15,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { formatCurrency } from '@/lib/utils'
 import { fetchStockBalances } from '@/modules/inventory/api'
 import { downloadReportCsv, fetchDashboardSummary } from './api'
 
@@ -118,14 +118,14 @@ export function ReportsView() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-slate-600">Total Stock Valuation</CardTitle>
-            <DollarSign className="h-4 w-4 text-emerald-600" />
+            <span className="font-bold font-mono text-emerald-600 text-sm">₱</span>
           </CardHeader>
           <CardContent>
             {loadingSummary ? (
               <Loader2 className="h-6 w-6 animate-spin text-slate-400 my-1" />
             ) : (
               <div className="text-2xl font-bold text-emerald-700 font-mono">
-                ${parseFloat(summary?.total_inventory_valuation || '0').toFixed(2)}
+                {formatCurrency(summary?.total_inventory_valuation)}
               </div>
             )}
             <p className="text-xs text-slate-500 mt-1">Based on baseline purchase costs</p>

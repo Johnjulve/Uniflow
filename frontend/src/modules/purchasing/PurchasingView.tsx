@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { formatCurrency } from '@/lib/utils'
 import { fetchLocations } from '@/modules/inventory/api'
 import {
   cancelPurchaseOrder,
@@ -445,7 +446,7 @@ export function PurchasingView() {
                       <div className="text-slate-400">{po.items?.length || 0} line item(s)</div>
                     </td>
                     <td className="px-6 py-4 font-semibold text-slate-900">
-                      ${parseFloat(po.total_cost).toFixed(2)}
+                      {formatCurrency(po.total_cost)}
                     </td>
                     <td className="px-6 py-4 text-right space-x-2">
                       {po.status === 'DRAFT' && (
@@ -677,7 +678,7 @@ export function PurchasingView() {
                           />
                         </div>
                         <div className="w-24 text-right font-semibold text-slate-800">
-                          ${lineTotal.toFixed(2)}
+                          {formatCurrency(lineTotal)}
                         </div>
                         <Button
                           type="button"
@@ -694,7 +695,7 @@ export function PurchasingView() {
                   })}
 
                   <div className="flex justify-end pt-2 font-bold text-sm text-slate-900">
-                    <span>Estimated Total: ${calculateCreateTotal().toFixed(2)}</span>
+                    <span>Estimated Total: {formatCurrency(calculateCreateTotal())}</span>
                   </div>
                 </div>
               </div>

@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { formatCurrency } from '@/lib/utils'
 import { useAuth } from '@/modules/auth/useAuth'
 import {
   archiveProduct,
@@ -250,10 +251,10 @@ function CatalogTable({
                 <Badge variant="outline">{p.category_name || 'Uncategorized'}</Badge>
               </td>
               <td className="px-6 py-4 text-right font-mono text-slate-600">
-                ${parseFloat(p.purchase_cost).toFixed(2)}
+                {formatCurrency(p.purchase_cost)}
               </td>
               <td className="px-6 py-4 text-right font-mono font-semibold text-slate-900">
-                ${parseFloat(p.selling_price).toFixed(2)}
+                {formatCurrency(p.selling_price)}
               </td>
               <td className="px-6 py-4 text-right font-mono">
                 {p.total_on_hand && parseFloat(p.total_on_hand) > 0 ? (
