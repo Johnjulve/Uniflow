@@ -13,7 +13,7 @@ from django.utils import timezone
 
 from apps.catalog.models import Product
 from apps.inventory.models import StockBalance, StockMovement
-from apps.purchasing.models import PurchaseOrder
+from apps.purchasing.models import PurchaseOrder, PurchaseOrderItem, PurchaseOrderStatus
 
 
 class ReportsService:
@@ -30,16 +30,94 @@ class ReportsService:
         # 1. Total active products
         total_active_products = Product.objects.filter(is_active=True).count()
 
-        # 2. Total physical quantity across all locations
-        total_qty_agg = StockBalance.objects.aggregate(total=Sum("current_quantity"))["total"]
-        total_inventory_quantity = str(total_qty_agg or Decimal("0.00"))
-
-        # 3. Total inventory valuation (Quantity * Purchase Cost)
-        valuation_agg = StockBalance.objects.aggregate(
-            valuation=Sum(F("current_quantity") * F("product__purchase_cost"))
-        )["valuation"]
-        raw_valuation = valuation_agg or Decimal("0.0000")
+        # 2 & 3. Consolidated stock balance aggregations (quantity, cost valuation, retail revenue)
+        stock_agg = StockBalance.objects.aggregate(
+            total_qty=Sum("current_quantity"),
+            valuation=Sum(F("current_quantity") * F("product__purchase_cost")),
+            revenue=Sum(F("current_quantity") * F("product__selling_price")),
+        )
+        total_inventory_quantity = str(stock_agg["total_qty"] or Decimal("0.00"))
+        raw_valuation = stock_agg["valuation"] or Decimal("0.0000")
         total_inventory_valuation = str(raw_valuation.quantize(Decimal("0.01")))
+        raw_revenue = stock_agg["revenue"] or Decimal("0.0000")
+        potential_revenue = str(raw_revenue.quantize(Decimal("0.01")))
+
+        # 3b. Projected gross margin and markup percentage
+        raw_margin = raw_revenue - raw_valuation
+        projected_margin = str(raw_margin.quantize(Decimal("0.01")))
+        margin_percentage = (
+            str(((raw_margin / raw_valuation) * Decimal("100")).quantize(Decimal("0.1")))
+            if raw_valuation > Decimal("0.00")
+            else "0.0"
+        )
+
+        # 3c. Incoming procurement costs from open POs (awaiting delivery)
+        open_items = PurchaseOrderItem.objects.filter(
+            purchase_order__status__in=[
+                PurchaseOrderStatus.DRAFT,
+                PurchaseOrderStatus.SUBMITTED,
+                PurchaseOrderStatus.PARTIALLY_RECEIVED,
+            ]
+        )
+        incoming_agg = open_items.aggregate(
+            qty=Sum(F("ordered_quantity") - F("received_quantity")),
+            cost=Sum((F("ordered_quantity") - F("received_quantity")) * F("unit_cost")),
+        )
+        incoming_quantity = str((incoming_agg["qty"] or Decimal("0.00")).quantize(Decimal("0.01")))
+        incoming_cost = str((incoming_agg["cost"] or Decimal("0.00")).quantize(Decimal("0.01")))
+
+        # 3d. Valuation breakdown by warehouse location
+        loc_balances = (
+            StockBalance.objects.filter(current_quantity__gt=Decimal("0.00"))
+            .values("location__id", "location__code", "location__name")
+            .annotate(
+                total_qty=Sum("current_quantity"),
+                total_val=Sum(F("current_quantity") * F("product__purchase_cost")),
+            )
+            .order_by("-total_val")
+        )
+        valuation_by_location = []
+        for lb in loc_balances:
+            val = lb["total_val"] or Decimal("0.00")
+            share = (
+                Decimal("0.0")
+                if raw_valuation <= Decimal("0.00")
+                else ((val / raw_valuation) * Decimal("100")).quantize(Decimal("0.1"))
+            )
+            valuation_by_location.append({
+                "location_id": str(lb["location__id"]),
+                "location_code": lb["location__code"],
+                "location_name": lb["location__name"],
+                "quantity": str((lb["total_qty"] or Decimal("0.00")).quantize(Decimal("0.01"))),
+                "valuation": str(val.quantize(Decimal("0.01"))),
+                "share_percentage": str(share),
+            })
+
+        # 3e. Valuation breakdown by product category
+        cat_balances = (
+            StockBalance.objects.filter(current_quantity__gt=Decimal("0.00"))
+            .values("product__category__id", "product__category__name")
+            .annotate(
+                total_qty=Sum("current_quantity"),
+                total_val=Sum(F("current_quantity") * F("product__purchase_cost")),
+            )
+            .order_by("-total_val")
+        )
+        valuation_by_category = []
+        for cb in cat_balances:
+            val = cb["total_val"] or Decimal("0.00")
+            share = (
+                Decimal("0.0")
+                if raw_valuation <= Decimal("0.00")
+                else ((val / raw_valuation) * Decimal("100")).quantize(Decimal("0.1"))
+            )
+            valuation_by_category.append({
+                "category_id": str(cb["product__category__id"]) if cb["product__category__id"] else None,
+                "category_name": cb["product__category__name"] or "Uncategorized",
+                "quantity": str((cb["total_qty"] or Decimal("0.00")).quantize(Decimal("0.01"))),
+                "valuation": str(val.quantize(Decimal("0.01"))),
+                "share_percentage": str(share),
+            })
 
         # 4. Stock threshold alerts
         products_annotated = Product.objects.filter(is_active=True).annotate(
@@ -94,6 +172,13 @@ class ReportsService:
             "total_active_products": total_active_products,
             "total_inventory_quantity": total_inventory_quantity,
             "total_inventory_valuation": total_inventory_valuation,
+            "potential_revenue": potential_revenue,
+            "projected_margin": projected_margin,
+            "margin_percentage": margin_percentage,
+            "incoming_cost": incoming_cost,
+            "incoming_quantity": incoming_quantity,
+            "valuation_by_location": valuation_by_location,
+            "valuation_by_category": valuation_by_category,
             "low_stock_count": low_stock_count,
             "out_of_stock_count": out_of_stock_count,
             "recent_movements": recent_movements,
