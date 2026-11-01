@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { AlertCircle, Plus, Trash2, X } from 'lucide-react'
+import { AlertCircle, Minus, Plus, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -343,6 +343,15 @@ export function ProductModal({
       setError('Please provide SKU, Product Name, and select or create a Category.')
       return
     }
+    const parsedCost = parseFloat(purchaseCost) || 0
+    const parsedPrice = parseFloat(sellingPrice) || 0
+    const parsedThreshold = parseFloat(reorderThreshold) || 0
+
+    if (parsedCost < 0 || parsedPrice < 0 || parsedThreshold < 0) {
+      setError('Cost price, selling price, and reorder alert cannot be negative.')
+      return
+    }
+
     setIsSubmitting(true)
     try {
       await onSave({
@@ -352,9 +361,9 @@ export function ProductModal({
         description: description.trim() || undefined,
         category: activeCategoryId,
         unit_of_measure: unitOfMeasure.trim() || 'unit',
-        purchase_cost: purchaseCost,
-        selling_price: sellingPrice,
-        reorder_threshold: reorderThreshold,
+        purchase_cost: parsedCost.toFixed(2),
+        selling_price: parsedPrice.toFixed(2),
+        reorder_threshold: Math.max(0, Math.floor(parsedThreshold)).toString(),
       })
       onClose()
     } catch (err) {
@@ -439,47 +448,131 @@ export function ProductModal({
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-700" htmlFor="prod-cost">
                   Cost Price
                 </label>
-                <Input
-                  id="prod-cost"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={purchaseCost}
-                  onChange={(e) => setPurchaseCost(e.target.value)}
-                />
+                <div className="flex items-center rounded-lg border border-slate-300 bg-white overflow-hidden focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-600/20">
+                  <button
+                    type="button"
+                    aria-label="Decrease cost price"
+                    onClick={() => {
+                      const curr = parseFloat(purchaseCost) || 0
+                      setPurchaseCost(Math.max(0, curr - 1).toFixed(2))
+                    }}
+                    disabled={(parseFloat(purchaseCost) || 0) <= 0 || isSubmitting}
+                    className="flex h-10 w-8 sm:w-9 items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <Minus className="h-3.5 w-3.5" />
+                  </button>
+                  <input
+                    id="prod-cost"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    disabled={isSubmitting}
+                    value={purchaseCost}
+                    onChange={(e) => setPurchaseCost(e.target.value)}
+                    className="h-10 w-full min-w-0 border-x border-slate-200 text-center font-mono text-sm text-slate-800 focus:outline-hidden disabled:bg-slate-50 disabled:text-slate-400 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  />
+                  <button
+                    type="button"
+                    aria-label="Increase cost price"
+                    onClick={() => {
+                      const curr = parseFloat(purchaseCost) || 0
+                      setPurchaseCost((curr + 1).toFixed(2))
+                    }}
+                    disabled={isSubmitting}
+                    className="flex h-10 w-8 sm:w-9 items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-700" htmlFor="prod-price">
                   Selling Price
                 </label>
-                <Input
-                  id="prod-price"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={sellingPrice}
-                  onChange={(e) => setSellingPrice(e.target.value)}
-                />
+                <div className="flex items-center rounded-lg border border-slate-300 bg-white overflow-hidden focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-600/20">
+                  <button
+                    type="button"
+                    aria-label="Decrease selling price"
+                    onClick={() => {
+                      const curr = parseFloat(sellingPrice) || 0
+                      setSellingPrice(Math.max(0, curr - 1).toFixed(2))
+                    }}
+                    disabled={(parseFloat(sellingPrice) || 0) <= 0 || isSubmitting}
+                    className="flex h-10 w-8 sm:w-9 items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <Minus className="h-3.5 w-3.5" />
+                  </button>
+                  <input
+                    id="prod-price"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    disabled={isSubmitting}
+                    value={sellingPrice}
+                    onChange={(e) => setSellingPrice(e.target.value)}
+                    className="h-10 w-full min-w-0 border-x border-slate-200 text-center font-mono text-sm text-slate-800 focus:outline-hidden disabled:bg-slate-50 disabled:text-slate-400 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  />
+                  <button
+                    type="button"
+                    aria-label="Increase selling price"
+                    onClick={() => {
+                      const curr = parseFloat(sellingPrice) || 0
+                      setSellingPrice((curr + 1).toFixed(2))
+                    }}
+                    disabled={isSubmitting}
+                    className="flex h-10 w-8 sm:w-9 items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-700" htmlFor="prod-threshold">
                   Reorder Alert
                 </label>
-                <Input
-                  id="prod-threshold"
-                  type="number"
-                  step="1"
-                  min="0"
-                  value={reorderThreshold}
-                  onChange={(e) => setReorderThreshold(e.target.value)}
-                />
+                <div className="flex items-center rounded-lg border border-slate-300 bg-white overflow-hidden focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-600/20">
+                  <button
+                    type="button"
+                    aria-label="Decrease reorder threshold"
+                    onClick={() => {
+                      const curr = parseFloat(reorderThreshold) || 0
+                      setReorderThreshold(Math.max(0, Math.floor(curr - 1)).toString())
+                    }}
+                    disabled={(parseFloat(reorderThreshold) || 0) <= 0 || isSubmitting}
+                    className="flex h-10 w-8 sm:w-9 items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <Minus className="h-3.5 w-3.5" />
+                  </button>
+                  <input
+                    id="prod-threshold"
+                    type="number"
+                    step="1"
+                    min="0"
+                    disabled={isSubmitting}
+                    value={reorderThreshold}
+                    onChange={(e) => setReorderThreshold(e.target.value)}
+                    className="h-10 w-full min-w-0 border-x border-slate-200 text-center font-mono text-sm text-slate-800 focus:outline-hidden disabled:bg-slate-50 disabled:text-slate-400 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  />
+                  <button
+                    type="button"
+                    aria-label="Increase reorder threshold"
+                    onClick={() => {
+                      const curr = parseFloat(reorderThreshold) || 0
+                      setReorderThreshold((Math.floor(curr) + 1).toString())
+                    }}
+                    disabled={isSubmitting}
+                    className="flex h-10 w-8 sm:w-9 items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
             </div>
 

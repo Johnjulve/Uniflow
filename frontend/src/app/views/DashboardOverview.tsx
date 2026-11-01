@@ -82,6 +82,9 @@ export function DashboardOverview() {
   const marginPercentage = summary?.margin_percentage || '0.0'
   const incomingCost = parseFloat(summary?.incoming_cost || '0')
   const incomingQty = parseFloat(summary?.incoming_quantity || '0')
+  const monthlyRealizedRevenue = parseFloat(summary?.monthly_realized_revenue || '0')
+  const weeklyRealizedRevenue = parseFloat(summary?.weekly_realized_revenue || '0')
+  const monthlyRealizedProfit = parseFloat(summary?.monthly_realized_profit || '0')
 
   // Graph proportional calculation (max of revenue or in-stock+incoming)
   const maxFinancialValue = Math.max(potentialRevenue, inStockValuation + incomingCost, 1)
@@ -113,7 +116,7 @@ export function DashboardOverview() {
       </div>
 
       {/* Financial Analytics Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {/* Total Cost of In-Stock */}
         <Card
           className="cursor-pointer border-slate-200 hover:border-blue-400 hover:shadow-xs transition-all"
@@ -161,6 +164,45 @@ export function DashboardOverview() {
             <p className="text-xs text-slate-500 mt-1">
               Inventory value at catalog selling price
             </p>
+          </CardContent>
+        </Card>
+
+        {/* Monthly Realized Revenue */}
+        <Card
+          className="cursor-pointer border-slate-200 hover:border-emerald-500 hover:shadow-xs transition-all"
+          onClick={() => navigate('/inventory')}
+        >
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-slate-600">Monthly Realized Revenue</CardTitle>
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
+              <ShoppingCart className="h-4 w-4" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            {loadingSummary ? (
+              <Loader2 className="h-6 w-6 animate-spin text-slate-400 my-1" />
+            ) : (
+              <div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-bold text-slate-900">
+                    {formatCurrency(monthlyRealizedRevenue)}
+                  </span>
+                  {weeklyRealizedRevenue > 0 && (
+                    <Badge
+                      variant="outline"
+                      className="text-2xs text-emerald-700 border-emerald-200 bg-emerald-50/70"
+                    >
+                      +{formatCurrency(weeklyRealizedRevenue)} wk
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  {monthlyRealizedProfit !== 0
+                    ? `${monthlyRealizedProfit > 0 ? '+' : '-'}${formatCurrency(Math.abs(monthlyRealizedProfit))} MTD profit`
+                    : 'Realized sales this month'}
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 

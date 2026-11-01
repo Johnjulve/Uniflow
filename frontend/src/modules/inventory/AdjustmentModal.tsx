@@ -2,8 +2,22 @@ import React, { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import type { Location, StockAdjustmentPayload, StockBalance } from './types'
+import type { AdjustmentCategory, Location, StockAdjustmentPayload, StockBalance } from './types'
 import { AlertCircle, X, Scale, Minus, Plus } from 'lucide-react'
+
+const ADJUSTMENT_CATEGORIES: Array<{
+  value: AdjustmentCategory
+  label: string
+  description: string
+}> = [
+  { value: 'SOLD', label: 'Sold / Customer Sale', description: 'Recognized as realized sales revenue' },
+  { value: 'AUDIT', label: 'Cycle Count Audit Discrepancy', description: 'Variance from physical cycle count' },
+  { value: 'DAMAGED', label: 'Damaged / Broken Units', description: 'Stock written off due to damage' },
+  { value: 'INTERNAL_USE', label: 'Internal Operational Use', description: 'Used internally for company operations' },
+  { value: 'EXPIRED', label: 'Expired / Shelf Life Spoilage', description: 'Removed due to expiration date' },
+  { value: 'OPENING', label: 'Initial Opening Inventory Balance', description: 'Setting initial stock count' },
+  { value: 'OTHER', label: 'Other Reason', description: 'Requires custom justification note' },
+]
 
 interface AdjustmentModalProps {
   isOpen: boolean
@@ -56,6 +70,9 @@ export function AdjustmentModal({
   const [countedQty, setCountedQty] = useState(
     selectedBalance?.current_quantity || (matchedBalance ? matchedBalance.current_quantity : '0.00')
   )
+  const [reasonCategory, setReasonCategory] = useState<AdjustmentCategory>(
+    currentVal === 0 ? 'OPENING' : 'AUDIT'
+  )
   const [reason, setReason] = useState(
     currentVal === 0 ? 'Initial opening inventory balance' : ''
   )
@@ -82,8 +99,13 @@ export function AdjustmentModal({
       return
     }
 
-    if (!reason.trim()) {
-      setError('Please provide a justification reason for this stock adjustment.')
+    if (reasonCategory === 'SOLD' && delta > 0) {
+      setError("Adjustment reason 'Sold' cannot increase stock balance. Counted quantity must be less than current on-hand balance.")
+      return
+    }
+
+    if (reasonCategory === 'OTHER' && !reason.trim()) {
+      setError("Please provide a custom justification reason when category is 'Other'.")
       return
     }
 
@@ -93,6 +115,7 @@ export function AdjustmentModal({
         product: targetProductId,
         location: locationId,
         counted_quantity: countedQty,
+        reason_category: reasonCategory,
         reason: reason.trim(),
       })
       onClose()
@@ -227,7 +250,7 @@ export function AdjustmentModal({
                       const next = Math.max(0, curr - 1)
                       setCountedQty(next.toFixed(2))
                     }}
-                    disabled={parseFloat(countedQty) <= 0 || isSubmitting}
+                    disabled={(parseFloat(countedQty) || 0) <= 0 || isSubmitting}
                     className="flex h-10 w-9 items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
                     <Minus className="h-4 w-4" />
@@ -237,9 +260,10 @@ export function AdjustmentModal({
                     type="number"
                     step="0.01"
                     min="0"
+                    disabled={isSubmitting}
                     value={countedQty}
                     onChange={(e) => setCountedQty(e.target.value)}
-                    className="h-10 w-full min-w-0 border-x border-slate-200 text-center font-mono font-semibold text-sm text-slate-800 focus:outline-hidden [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    className="h-10 w-full min-w-0 border-x border-slate-200 text-center font-mono font-semibold text-sm text-slate-800 focus:outline-hidden disabled:bg-slate-50 disabled:text-slate-400 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     required
                   />
                   <button
@@ -275,15 +299,60 @@ export function AdjustmentModal({
             </div>
 
             <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-700" htmlFor="adj-category">
+                Adjustment Reason Category *
+              </label>
+              <select
+                id="adj-category"
+                className="flex h-10 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+                value={reasonCategory}
+                onChange={(e) => setReasonCategory(e.target.value as AdjustmentCategory)}
+                required
+              >
+                {ADJUSTMENT_CATEGORIES.map((cat) => (
+                  <option key={cat.value} value={cat.value}>
+                    {cat.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Contextual Guidance Banner for Customer Sale adjustments */}
+            {reasonCategory === 'SOLD' && (
+              <div
+                className={`rounded-lg p-2.5 text-xs flex items-center gap-2 border ${
+                  delta < 0
+                    ? 'bg-emerald-50/70 border-emerald-200 text-emerald-800'
+                    : 'bg-rose-50/70 border-rose-200 text-rose-800'
+                }`}
+              >
+                {delta < 0 ? (
+                  <span>
+                    📈 <strong>Sales Recognition:</strong> Outgoing {Math.abs(delta).toFixed(2)} {currentUnit} will be recorded as a customer sales issue and added to Monthly Realized Revenue.
+                  </span>
+                ) : (
+                  <span>
+                    ⚠️ <strong>Invalid Delta:</strong> Sales adjustments must decrease inventory. Count must be lower than {currentVal.toFixed(2)} {currentUnit}.
+                  </span>
+                )}
+              </div>
+            )}
+
+            <div className="space-y-1">
               <label className="text-xs font-semibold text-slate-700" htmlFor="adj-reason">
-                Justification Reason *
+                {reasonCategory === 'OTHER' ? 'Justification Reason *' : 'Justification Reason (Optional)'}
               </label>
               <Input
                 id="adj-reason"
-                placeholder="e.g. Cycle count audit discrepancy, damaged units removed"
+                disabled={isSubmitting}
+                placeholder={
+                  reasonCategory === 'OTHER'
+                    ? 'Please specify the exact operational justification for this adjustment...'
+                    : 'e.g. Audit variance, retail cash transaction, damaged batch note...'
+                }
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                required
+                required={reasonCategory === 'OTHER'}
               />
             </div>
           </CardContent>
@@ -292,7 +361,10 @@ export function AdjustmentModal({
             <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting || delta === 0}>
+            <Button
+              type="submit"
+              disabled={isSubmitting || delta === 0 || (reasonCategory === 'SOLD' && delta > 0)}
+            >
               {isSubmitting ? 'Posting Ledger...' : 'Commit Adjustment'}
             </Button>
           </CardFooter>

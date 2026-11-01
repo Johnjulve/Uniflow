@@ -47,6 +47,9 @@ export interface DashboardSummary {
   potential_revenue: string
   projected_margin: string
   margin_percentage: string
+  monthly_realized_revenue?: string
+  weekly_realized_revenue?: string
+  monthly_realized_profit?: string
   incoming_cost: string
   incoming_quantity: string
   valuation_by_location: LocationValuationBreakdown[]

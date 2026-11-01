@@ -43,11 +43,21 @@ export interface StockMovement {
   created_at: string
 }
 
+export type AdjustmentCategory =
+  | 'SOLD'
+  | 'AUDIT'
+  | 'DAMAGED'
+  | 'INTERNAL_USE'
+  | 'EXPIRED'
+  | 'OPENING'
+  | 'OTHER'
+
 export interface StockAdjustmentPayload {
   product: string
   location: string
   counted_quantity: string
-  reason: string
+  reason?: string
+  reason_category?: AdjustmentCategory
 }
 
 export interface StockTransferPayload {
