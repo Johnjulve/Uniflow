@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Horizontal left-to-right quantity stepper `[ - ] [ Qty ] [ + ]` for purchase order line items and intake delivery receiving (`Accept Now` and `Damaged`).
   - Idempotent offline synchronization protocol powered by Dexie IndexedDB and `sync_metadata` table.
   - Real-time stock valuation reporting, low-stock threshold alerting, and streaming CSV export engine.
+  - Executive Financial & Revenue Analytics Dashboard: Added real-time potential retail revenue, gross margin markup %, incoming procurement pipeline metrics, and visual valuation distribution graphs across warehouses and product categories.
   - Production deployment runners and automated database backup/restore scripts with post-restoration ledger verification.
 
 ### Security
