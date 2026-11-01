@@ -19,6 +19,7 @@ import {
   Layers,
   ArrowRight,
   Percent,
+  Info,
 } from 'lucide-react'
 import { useSync } from '@/offline/useSync'
 import { cn, formatCurrency } from '@/lib/utils'
@@ -79,7 +80,8 @@ export function DashboardOverview() {
   const inStockValuation = parseFloat(summary?.total_inventory_valuation || '0')
   const potentialRevenue = parseFloat(summary?.potential_revenue || '0')
   const projectedMargin = parseFloat(summary?.projected_margin || '0')
-  const marginPercentage = summary?.margin_percentage || '0.0'
+  const grossMarginPercentage = summary?.gross_margin_percentage || summary?.margin_percentage || '0.0'
+  const markupPercentage = summary?.markup_percentage || '0.0'
   const incomingCost = parseFloat(summary?.incoming_cost || '0')
   const incomingQty = parseFloat(summary?.incoming_quantity || '0')
   const monthlyRealizedRevenue = parseFloat(summary?.monthly_realized_revenue || '0')
@@ -104,10 +106,10 @@ export function DashboardOverview() {
         </div>
         <div className="flex items-center gap-2">
           <Button
-            variant="outline"
+            variant="default"
             size="sm"
             onClick={() => navigate('/reports')}
-            className="text-xs gap-1.5"
+            className="text-xs gap-1.5 bg-blue-600 hover:bg-blue-700 text-white shadow-xs font-medium cursor-pointer"
           >
             <span>Full Reports Center</span>
             <ArrowRight className="h-3.5 w-3.5" />
@@ -123,7 +125,12 @@ export function DashboardOverview() {
           onClick={() => navigate('/inventory')}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600">Total In-Stock Cost</CardTitle>
+            <div className="flex items-center gap-1.5">
+              <CardTitle className="text-sm font-medium text-slate-600">Total In-Stock Cost</CardTitle>
+              <span title="Formula: sum(on-hand quantity × unit purchase cost) across all active warehouse locations.">
+                <Info className="h-3.5 w-3.5 text-slate-400 hover:text-slate-600 cursor-help" />
+              </span>
+            </div>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-700 font-bold font-mono text-sm">
               ₱
             </div>
@@ -148,7 +155,12 @@ export function DashboardOverview() {
           onClick={() => navigate('/catalog')}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600">Potential Revenue</CardTitle>
+            <div className="flex items-center gap-1.5">
+              <CardTitle className="text-sm font-medium text-slate-600">Potential Revenue</CardTitle>
+              <span title="Formula: sum(on-hand quantity × catalog selling price) across all active inventory items.">
+                <Info className="h-3.5 w-3.5 text-slate-400 hover:text-slate-600 cursor-help" />
+              </span>
+            </div>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
               <TrendingUp className="h-4 w-4" />
             </div>
@@ -173,7 +185,12 @@ export function DashboardOverview() {
           onClick={() => navigate('/inventory')}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600">Monthly Realized Revenue</CardTitle>
+            <div className="flex items-center gap-1.5">
+              <CardTitle className="text-sm font-medium text-slate-600">Monthly Realized Revenue</CardTitle>
+              <span title="Formula: Recognized sales from Customer Sale (SOLD) stock movements this month. Realized Gross Margin = Sales Revenue − Cost of Goods Sold.">
+                <Info className="h-3.5 w-3.5 text-slate-400 hover:text-slate-600 cursor-help" />
+              </span>
+            </div>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
               <ShoppingCart className="h-4 w-4" />
             </div>
@@ -183,23 +200,32 @@ export function DashboardOverview() {
               <Loader2 className="h-6 w-6 animate-spin text-slate-400 my-1" />
             ) : (
               <div>
-                <div className="flex items-baseline gap-2">
+                <div className="flex flex-wrap items-baseline gap-2">
                   <span className="text-2xl font-bold text-slate-900">
                     {formatCurrency(monthlyRealizedRevenue)}
                   </span>
                   {weeklyRealizedRevenue > 0 && (
                     <Badge
                       variant="outline"
-                      className="text-2xs text-emerald-700 border-emerald-200 bg-emerald-50/70"
+                      className="text-2xs text-emerald-700 border-emerald-200 bg-emerald-50/70 shrink-0 font-medium"
+                      title="Actual customer sales recorded in the current calendar week"
                     >
                       +{formatCurrency(weeklyRealizedRevenue)} wk
                     </Badge>
                   )}
                 </div>
-                <p className="text-xs text-slate-500 mt-1">
-                  {monthlyRealizedProfit !== 0
-                    ? `${monthlyRealizedProfit > 0 ? '+' : '-'}${formatCurrency(Math.abs(monthlyRealizedProfit))} MTD profit`
-                    : 'Realized sales this month'}
+                <p className="text-xs mt-1">
+                  {monthlyRealizedProfit > 0 ? (
+                    <span className="text-emerald-700 font-semibold" title="Realized Gross Profit = Sales Revenue − Purchase Cost of Sold Units">
+                      +{formatCurrency(monthlyRealizedProfit)} MTD profit
+                    </span>
+                  ) : monthlyRealizedProfit < 0 ? (
+                    <span className="text-rose-600 font-semibold" title="Net loss: Items were sold below their recorded unit purchase cost">
+                      -{formatCurrency(Math.abs(monthlyRealizedProfit))} MTD net loss
+                    </span>
+                  ) : (
+                    <span className="text-slate-500">Realized sales recorded this month</span>
+                  )}
                 </p>
               </div>
             )}
@@ -212,7 +238,12 @@ export function DashboardOverview() {
           onClick={() => navigate('/reports')}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600">Projected Margin</CardTitle>
+            <div className="flex items-center gap-1.5">
+              <CardTitle className="text-sm font-medium text-slate-600">Projected Margin</CardTitle>
+              <span title="Formula: Gross Margin % = (Potential Revenue − In-Stock Cost) ÷ Potential Revenue. Markup % = (Potential Revenue − In-Stock Cost) ÷ In-Stock Cost.">
+                <Info className="h-3.5 w-3.5 text-slate-400 hover:text-slate-600 cursor-help" />
+              </span>
+            </div>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
               <Percent className="h-4 w-4" />
             </div>
@@ -221,32 +252,35 @@ export function DashboardOverview() {
             {loadingSummary ? (
               <Loader2 className="h-6 w-6 animate-spin text-slate-400 my-1" />
             ) : (
-              <div className="flex items-baseline gap-2">
-                <span
-                  className={cn(
-                    'text-2xl font-bold',
-                    projectedMargin >= 0 ? 'text-indigo-700' : 'text-rose-600'
-                  )}
-                >
-                  {projectedMargin < 0 ? '-' : '+'}
-                  {formatCurrency(Math.abs(projectedMargin))}
-                </span>
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    'text-2xs',
-                    projectedMargin >= 0
-                      ? 'text-indigo-700 border-indigo-200 bg-indigo-50/50'
-                      : 'text-rose-700 border-rose-200 bg-rose-50/50'
-                  )}
-                >
-                  {projectedMargin > 0 ? `+${marginPercentage}%` : `${marginPercentage}%`}
-                </Badge>
+              <div>
+                <div className="flex flex-wrap items-baseline gap-2">
+                  <span
+                    className={cn(
+                      'text-2xl font-bold',
+                      projectedMargin >= 0 ? 'text-indigo-700' : 'text-rose-600'
+                    )}
+                  >
+                    {projectedMargin < 0 ? '-' : '+'}
+                    {formatCurrency(Math.abs(projectedMargin))}
+                  </span>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      'text-2xs shrink-0 font-medium',
+                      projectedMargin >= 0
+                        ? 'text-indigo-700 border-indigo-200 bg-indigo-50/70'
+                        : 'text-rose-700 border-rose-200 bg-rose-50/70'
+                    )}
+                    title={`Gross Profit Margin on Revenue = (${formatCurrency(projectedMargin)} ÷ ${formatCurrency(potentialRevenue)}) × 100`}
+                  >
+                    {projectedMargin > 0 ? `+${grossMarginPercentage}%` : `${grossMarginPercentage}%`} margin
+                  </Badge>
+                </div>
+                <p className="text-xs text-slate-500 mt-1" title={`Cost Markup % = (${formatCurrency(projectedMargin)} ÷ ${formatCurrency(inStockValuation)}) × 100`}>
+                  {markupPercentage !== '0.0' ? `+${markupPercentage}% markup on cost` : 'Estimated profit upon complete sell-through'}
+                </p>
               </div>
             )}
-            <p className="text-xs text-slate-500 mt-1">
-              Estimated profit upon complete sell-through
-            </p>
           </CardContent>
         </Card>
 
@@ -256,7 +290,12 @@ export function DashboardOverview() {
           onClick={() => navigate('/purchasing')}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600">Incoming Inbound Value</CardTitle>
+            <div className="flex items-center gap-1.5">
+              <CardTitle className="text-sm font-medium text-slate-600">Incoming Inbound Value</CardTitle>
+              <span title="Formula: sum(remaining ordered quantity × purchase unit cost) across all open DRAFT, SUBMITTED, and PARTIALLY_RECEIVED purchase orders.">
+                <Info className="h-3.5 w-3.5 text-slate-400 hover:text-slate-600 cursor-help" />
+              </span>
+            </div>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
               <Truck className="h-4 w-4" />
             </div>

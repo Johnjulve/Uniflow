@@ -47,6 +47,8 @@ export interface DashboardSummary {
   potential_revenue: string
   projected_margin: string
   margin_percentage: string
+  gross_margin_percentage?: string
+  markup_percentage?: string
   monthly_realized_revenue?: string
   weekly_realized_revenue?: string
   monthly_realized_profit?: string

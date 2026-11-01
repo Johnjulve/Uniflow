@@ -130,7 +130,9 @@ def test_dashboard_summary_metrics(auth_client, sample_inventory_setup):
     # Potential Revenue: (20 * 18.00) + (5 * 8.00) = 360 + 40 = 400.00
     assert Decimal(data["potential_revenue"]) == Decimal("400.00")
     assert Decimal(data["projected_margin"]) == Decimal("125.00")
-    assert Decimal(data["margin_percentage"]) == Decimal("45.5")
+    assert Decimal(data["margin_percentage"]) == Decimal("31.2")
+    assert Decimal(data["gross_margin_percentage"]) == Decimal("31.2")
+    assert Decimal(data["markup_percentage"]) == Decimal("45.5")
     # Incoming from open PO-TEST-001: 10 units @ 12.50 = 125.00
     assert Decimal(data["incoming_cost"]) == Decimal("125.00")
     assert Decimal(data["incoming_quantity"]) == Decimal("10.00")
@@ -311,6 +313,8 @@ def test_dashboard_summary_zero_inventory_safe(auth_client):
     assert Decimal(data["potential_revenue"]) == Decimal("0.00")
     assert Decimal(data["projected_margin"]) == Decimal("0.00")
     assert data["margin_percentage"] == "0.0"
+    assert data["gross_margin_percentage"] == "0.0"
+    assert data["markup_percentage"] == "0.0"
     assert Decimal(data["incoming_cost"]) == Decimal("0.00")
     assert len(data["valuation_by_location"]) == 0
     assert len(data["valuation_by_category"]) == 0

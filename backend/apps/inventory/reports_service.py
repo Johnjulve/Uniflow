@@ -42,14 +42,24 @@ class ReportsService:
         raw_revenue = stock_agg["revenue"] or Decimal("0.0000")
         potential_revenue = str(raw_revenue.quantize(Decimal("0.01")))
 
-        # 3b. Projected gross margin and markup percentage
+        # 3b. Projected gross profit, gross margin % on revenue, and markup % on cost
         raw_margin = raw_revenue - raw_valuation
         projected_margin = str(raw_margin.quantize(Decimal("0.01")))
-        margin_percentage = (
+
+        # Standard Gross Margin % = (Margin / Revenue) * 100
+        gross_margin_percentage = (
+            str(((raw_margin / raw_revenue) * Decimal("100")).quantize(Decimal("0.1")))
+            if raw_revenue > Decimal("0.00")
+            else "0.0"
+        )
+
+        # Cost Markup % = (Margin / Cost Valuation) * 100
+        markup_percentage = (
             str(((raw_margin / raw_valuation) * Decimal("100")).quantize(Decimal("0.1")))
             if raw_valuation > Decimal("0.00")
             else "0.0"
         )
+        margin_percentage = gross_margin_percentage
 
         # 3c. Incoming procurement costs from open POs (awaiting delivery)
         open_items = PurchaseOrderItem.objects.filter(
@@ -206,6 +216,8 @@ class ReportsService:
             "potential_revenue": potential_revenue,
             "projected_margin": projected_margin,
             "margin_percentage": margin_percentage,
+            "gross_margin_percentage": gross_margin_percentage,
+            "markup_percentage": markup_percentage,
             "monthly_realized_revenue": monthly_realized_revenue,
             "weekly_realized_revenue": weekly_realized_revenue,
             "monthly_realized_profit": monthly_realized_profit,
