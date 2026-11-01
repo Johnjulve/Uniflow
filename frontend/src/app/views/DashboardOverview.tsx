@@ -14,7 +14,6 @@ import {
   Database,
   Activity,
   Loader2,
-  DollarSign,
   Truck,
   Building2,
   Layers,
@@ -22,7 +21,7 @@ import {
   Percent,
 } from 'lucide-react'
 import { useSync } from '@/offline/useSync'
-import { cn } from '@/lib/utils'
+import { cn, formatCurrency } from '@/lib/utils'
 import { fetchProducts } from '@/modules/catalog/api'
 import { fetchStockBalances } from '@/modules/inventory/api'
 import { fetchPurchaseOrders } from '@/modules/purchasing/api'
@@ -122,8 +121,8 @@ export function DashboardOverview() {
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-slate-600">Total In-Stock Cost</CardTitle>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-              <DollarSign className="h-4 w-4" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-700 font-bold font-mono text-sm">
+              ₱
             </div>
           </CardHeader>
           <CardContent>
@@ -131,7 +130,7 @@ export function DashboardOverview() {
               <Loader2 className="h-6 w-6 animate-spin text-slate-400 my-1" />
             ) : (
               <div className="text-2xl font-bold text-slate-900">
-                ${inStockValuation.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {formatCurrency(inStockValuation)}
               </div>
             )}
             <p className="text-xs text-slate-500 mt-1">
@@ -156,7 +155,7 @@ export function DashboardOverview() {
               <Loader2 className="h-6 w-6 animate-spin text-slate-400 my-1" />
             ) : (
               <div className="text-2xl font-bold text-emerald-700">
-                ${potentialRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {formatCurrency(potentialRevenue)}
               </div>
             )}
             <p className="text-xs text-slate-500 mt-1">
@@ -187,11 +186,8 @@ export function DashboardOverview() {
                     projectedMargin >= 0 ? 'text-indigo-700' : 'text-rose-600'
                   )}
                 >
-                  {projectedMargin < 0 ? '-' : '+'}$
-                  {Math.abs(projectedMargin).toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
+                  {projectedMargin < 0 ? '-' : '+'}
+                  {formatCurrency(Math.abs(projectedMargin))}
                 </span>
                 <Badge
                   variant="outline"
@@ -228,7 +224,7 @@ export function DashboardOverview() {
               <Loader2 className="h-6 w-6 animate-spin text-slate-400 my-1" />
             ) : (
               <div className="text-2xl font-bold text-slate-900">
-                ${incomingCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {formatCurrency(incomingCost)}
               </div>
             )}
             <p className="text-xs text-slate-500 mt-1">
@@ -271,7 +267,7 @@ export function DashboardOverview() {
                       In-Stock Inventory Cost
                     </span>
                     <span className="font-mono font-bold text-slate-900">
-                      ${inStockValuation.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      {formatCurrency(inStockValuation)}
                     </span>
                   </div>
                   <div className="h-3 w-full rounded-full bg-slate-100 overflow-hidden">
@@ -290,7 +286,7 @@ export function DashboardOverview() {
                       Potential Retail Revenue
                     </span>
                     <span className="font-mono font-bold text-emerald-700">
-                      ${potentialRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      {formatCurrency(potentialRevenue)}
                     </span>
                   </div>
                   <div className="h-3 w-full rounded-full bg-slate-100 overflow-hidden">
@@ -309,7 +305,7 @@ export function DashboardOverview() {
                       Incoming PO Commitments
                     </span>
                     <span className="font-mono font-bold text-amber-700">
-                      ${incomingCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      {formatCurrency(incomingCost)}
                     </span>
                   </div>
                   <div className="h-3 w-full rounded-full bg-slate-100 overflow-hidden">
@@ -405,7 +401,7 @@ export function DashboardOverview() {
                             {loc.location_code} — {loc.location_name}
                           </span>
                           <span className="font-mono font-medium text-slate-900">
-                            ${parseFloat(loc.valuation).toLocaleString(undefined, { minimumFractionDigits: 2 })}{' '}
+                            {formatCurrency(loc.valuation)}{' '}
                             <span className="text-slate-400 font-sans text-2xs">({loc.share_percentage}%)</span>
                           </span>
                         </div>
@@ -439,7 +435,7 @@ export function DashboardOverview() {
                         <div className="flex items-center justify-between text-xs">
                           <span className="font-semibold text-slate-800">{cat.category_name}</span>
                           <span className="font-mono font-medium text-slate-900">
-                            ${parseFloat(cat.valuation).toLocaleString(undefined, { minimumFractionDigits: 2 })}{' '}
+                            {formatCurrency(cat.valuation)}{' '}
                             <span className="text-slate-400 font-sans text-2xs">({cat.share_percentage}%)</span>
                           </span>
                         </div>

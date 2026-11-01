@@ -282,7 +282,7 @@ export function TransferModal({
 
               <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-3 text-center">
                 <div className="text-xs text-emerald-800 font-medium">Valuation Impact</div>
-                <div className="text-lg font-bold font-mono text-emerald-700">$0.00</div>
+                <div className="text-lg font-bold font-mono text-emerald-700">₱0.00</div>
                 <div className="text-[10px] text-emerald-600">Cost Neutral Transfer</div>
               </div>
             </div>
