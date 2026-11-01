@@ -38,8 +38,7 @@ import {
   type UserRoleCode,
   type UserUpdatePayload,
 } from './api'
-
-const APP_VERSION = '0.1.0'
+import { APP_VERSION } from '@/lib/constants'
 
 const ROLE_OPTIONS: { value: UserRoleCode; label: string; description: string }[] = [
   { value: 'ADMIN', label: 'Administrator', description: 'Full configuration & user management' },

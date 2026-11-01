@@ -12,6 +12,9 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 ROOT_DIR = BASE_DIR.parent
 
+# Authoritative Uniflow Platform Version (Single Source of Truth)
+UNIFLOW_VERSION = "0.2.0"
+
 # Load environment variables from .env file at repo root if present
 load_dotenv(ROOT_DIR / ".env")
 
@@ -123,7 +126,7 @@ REST_FRAMEWORK = {
 SPECTACULAR_SETTINGS = {
     "TITLE": "Uniflow IMS API",
     "DESCRIPTION": "Authoritative inventory and business management REST API for Uniflow.",
-    "VERSION": "1.0.0",
+    "VERSION": UNIFLOW_VERSION,
     "SERVE_INCLUDE_SCHEMA": False,
     "SCHEMA_PATH_PREFIX": r"/api/v1/",
 }

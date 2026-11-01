@@ -2,6 +2,7 @@
 Tests for system health check and OpenAPI documentation endpoints.
 """
 import pytest
+from django.conf import settings
 from rest_framework import status
 from rest_framework.test import APIClient
 
@@ -20,7 +21,7 @@ def test_health_check_endpoint(api_client):
     assert data["status"] == "healthy"
     assert data["database"] == "connected"
     assert "timestamp" in data
-    assert data["version"] == "0.1.0"
+    assert data["version"] == getattr(settings, "UNIFLOW_VERSION", "0.2.0")
 
 
 def test_openapi_schema_endpoint(api_client):

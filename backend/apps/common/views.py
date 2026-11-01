@@ -2,6 +2,7 @@
 Common API views: system health checks, idempotent offline outbox synchronization,
 and delta cache pull cursors.
 """
+from django.conf import settings
 from django.db import connection
 from django.utils import dateparse, timezone
 from drf_spectacular.utils import extend_schema, inline_serializer
@@ -33,7 +34,9 @@ class HealthCheckView(APIView):
                     "status": serializers.CharField(default="healthy"),
                     "database": serializers.CharField(default="connected"),
                     "timestamp": serializers.DateTimeField(),
-                    "version": serializers.CharField(default="0.1.0"),
+                    "version": serializers.CharField(
+                        default=getattr(settings, "UNIFLOW_VERSION", "0.2.0")
+                    ),
                 },
             ),
             503: inline_serializer(
@@ -72,7 +75,7 @@ class HealthCheckView(APIView):
                 "status": "healthy",
                 "database": db_status,
                 "timestamp": timezone.now().isoformat(),
-                "version": "0.1.0",
+                "version": getattr(settings, "UNIFLOW_VERSION", "0.2.0"),
             },
             status=http_status,
         )

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { OutboxModal } from '@/components/feedback/OutboxModal'
 import { SyncIndicator } from '@/components/feedback/SyncIndicator'
+import { APP_VERSION } from '@/lib/constants'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/modules/auth/useAuth'
@@ -73,7 +74,7 @@ export function DashboardLayout() {
 
         <div className="border-t border-slate-200 p-4">
           <div className="flex items-center justify-between text-xs text-slate-500">
-            <span>Version 0.1.0</span>
+            <span>Version {APP_VERSION}</span>
             <span className="font-mono">Offline-First</span>
           </div>
         </div>
