@@ -19,6 +19,8 @@ export interface StockBalance {
   location_name: string
   current_quantity: string
   reorder_threshold: string
+  purchase_cost?: string
+  selling_price?: string
   is_low_stock: boolean
   updated_at: string
 }

@@ -56,6 +56,8 @@ class StockBalanceSerializer(serializers.ModelSerializer):
     category_name = serializers.ReadOnlyField(source="product.category.name", default=None)
     reorder_threshold = serializers.ReadOnlyField(source="product.reorder_threshold")
     unit_of_measure = serializers.ReadOnlyField(source="product.unit_of_measure")
+    purchase_cost = serializers.ReadOnlyField(source="product.purchase_cost")
+    selling_price = serializers.ReadOnlyField(source="product.selling_price")
     location_code = serializers.ReadOnlyField(source="location.code")
     location_name = serializers.ReadOnlyField(source="location.name")
     is_low_stock = serializers.SerializerMethodField()
@@ -70,6 +72,8 @@ class StockBalanceSerializer(serializers.ModelSerializer):
             "product_is_active",
             "category_name",
             "unit_of_measure",
+            "purchase_cost",
+            "selling_price",
             "location",
             "location_code",
             "location_name",
