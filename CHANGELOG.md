@@ -5,6 +5,28 @@ All notable changes to the Uniflow IMS platform will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-11-01
+
+### Added
+- **Reports & Analytics Center Overhaul (`/reports`)**:
+  - Executive Financial Summary cards showing In-Stock Cost, Potential Retail Revenue, Projected Margin, MTD Realized Revenue & Profit, and Pipeline Units.
+  - Interactive **Warehouse Asset Distribution** and **Category Valuation Share** visual comparison bars with MTD sales realization progress tracking.
+  - High-precision **Stock Valuation & Profitability Table** with live search filtering, unit acquisition cost, unit catalog price, valuation, retail revenue, unit gross margin %, status badges, and aggregate portfolio totals footer.
+  - CSV export date range scoping with clear visual indicator.
+- **True Gross Margin & Cost Markup Disambiguation**:
+  - Distinguishes Gross Margin (`(Revenue - Cost) / Revenue * 100`) from Markup on Cost (`(Revenue - Cost) / Cost * 100`) in both backend calculations and frontend displays.
+  - Added accessible `(i)` calculation guides explaining mathematical formulas for all dashboard and report KPIs.
+  - Explicit `-₱... MTD net loss` badge in rose styling when COGS exceeds realized sales.
+- **Categorized Stock Adjustments & Realized Revenue Tracking**:
+  - Structured adjustment reasons (`SOLD`, `DAMAGED`, `EXPIRED`, `INTERNAL_USE`, `AUDIT_CORRECTION`, `FOUND`, `RETURN`, `OTHER`) with required custom justifications for custom cases.
+  - Automatic calculation of realized sales revenue, cost-of-goods-sold, and realized gross profit from `SOLD` manual decrements alongside sales channels.
+- **UI/UX Polish & Stepper Inputs**:
+  - Reusable horizontal `[ - ] [ Input ] [ + ]` quantity and price steppers across Product creation/editing modals and Stock Adjustment dialogs.
+  - Localized currency formatting using centralized `formatCurrency` in Philippine Peso (`₱` / PHP).
+- **Single-Source Global Versioning System**:
+  - Backend `UNIFLOW_VERSION = "0.2.0"` in `backend/config/settings/base.py` bound to OpenAPI Spectacular and health endpoints.
+  - Frontend `APP_VERSION = '0.2.0'` in `frontend/src/lib/constants.ts` bound to layout navigation and system diagnostics.
+
 ## [0.1.0] - 2026-10-31
 
 ### Added

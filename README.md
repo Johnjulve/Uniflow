@@ -8,7 +8,7 @@ Uniflow is a reliable, maintainable, locally hosted business management system d
 
 ## Documentation
 
-- **[Changelog](CHANGELOG.md)**: Release history, feature milestones, and security updates for `v0.1.0`.
+- **[Changelog](CHANGELOG.md)**: Release history, feature milestones, and security updates for `v0.2.0`.
 - **[Architecture](docs/architecture.md)**: Technical architecture, modular monolith domain boundaries, and data flow.
 - **[Database Design](docs/database-design.md)**: Relational schema, tables, foreign keys, and integrity constraints.
 - **[API Contract](docs/api-contract.md)**: REST endpoints, request/response envelopes, and status codes.
