@@ -61,6 +61,16 @@ class MovementType(models.TextChoices):
     REVERSAL = "REVERSAL", "Reversal"
 
 
+class AdjustmentReasonCategory(models.TextChoices):
+    SOLD = "SOLD", "Sold / Customer Sale"
+    AUDIT = "AUDIT", "Cycle Count Audit Discrepancy"
+    DAMAGED = "DAMAGED", "Damaged / Broken Units"
+    INTERNAL_USE = "INTERNAL_USE", "Internal Operational Use"
+    EXPIRED = "EXPIRED", "Expired / Shelf Life Spoilage"
+    OPENING = "OPENING", "Initial Opening Inventory Balance"
+    OTHER = "OTHER", "Other"
+
+
 class StockMovement(UUIDModel):
     """
     Immutable ledger of every inventory change.

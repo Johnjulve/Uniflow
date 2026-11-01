@@ -135,7 +135,8 @@ class StockAdjustmentView(APIView):
         product = serializer.validated_data["product"]
         location = serializer.validated_data["location"]
         counted_quantity = serializer.validated_data["counted_quantity"]
-        reason = serializer.validated_data["reason"]
+        reason = serializer.validated_data.get("reason", "")
+        reason_category = serializer.validated_data.get("reason_category", "AUDIT")
 
         try:
             movement = StockMovementService.adjust_stock(
@@ -144,6 +145,7 @@ class StockAdjustmentView(APIView):
                 counted_quantity=counted_quantity,
                 actor=request.user,
                 reason=reason,
+                reason_category=reason_category,
             )
         except InventoryError as err:
             raise ValidationError({"detail": str(err)}) from err

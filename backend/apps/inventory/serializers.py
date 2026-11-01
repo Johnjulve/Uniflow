@@ -7,7 +7,12 @@ from decimal import Decimal
 from rest_framework import serializers
 
 from apps.catalog.models import Product
-from apps.inventory.models import Location, StockBalance, StockMovement
+from apps.inventory.models import (
+    AdjustmentReasonCategory,
+    Location,
+    StockBalance,
+    StockMovement,
+)
 
 
 class LocationSerializer(serializers.ModelSerializer):
@@ -132,7 +137,27 @@ class StockAdjustmentRequestSerializer(serializers.Serializer):
     counted_quantity = serializers.DecimalField(
         max_digits=12, decimal_places=2, min_value=Decimal("0.00")
     )
-    reason = serializers.CharField(required=True, max_length=255, trim_whitespace=True)
+    reason_category = serializers.ChoiceField(
+        choices=AdjustmentReasonCategory.choices,
+        default=AdjustmentReasonCategory.AUDIT,
+        required=False,
+    )
+    reason = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+        max_length=255,
+        trim_whitespace=True,
+    )
+
+    def validate(self, attrs):
+        category = attrs.get("reason_category", AdjustmentReasonCategory.AUDIT)
+        reason = (attrs.get("reason") or "").strip()
+        if category == AdjustmentReasonCategory.OTHER and not reason:
+            raise serializers.ValidationError(
+                {"reason": "Justification reason is required when category is 'Other'."}
+            )
+        return attrs
 
 
 class StockAdjustmentResponseSerializer(serializers.Serializer):

@@ -12,7 +12,13 @@ from django.utils import timezone
 
 from apps.catalog.models import Product
 from apps.inventory.exceptions import InsufficientStockError, InvalidMovementError
-from apps.inventory.models import Location, MovementType, StockBalance, StockMovement
+from apps.inventory.models import (
+    AdjustmentReasonCategory,
+    Location,
+    MovementType,
+    StockBalance,
+    StockMovement,
+)
 
 
 def generate_movement_reference() -> str:
@@ -112,10 +118,13 @@ class StockMovementService:
         location: Location,
         counted_quantity: Decimal,
         actor,
-        reason: str,
+        reason: str = "",
+        reason_category: str = "AUDIT",
     ) -> StockMovement:
         """
         Perform a physical cycle count adjustment to align projected balance with counted inventory.
+        Supports categorized adjustment reasons (SOLD, AUDIT, DAMAGED, INTERNAL_USE, EXPIRED, OPENING, OTHER).
+        When reason_category is SOLD and delta < 0, records an ISSUE movement recognizing actual sales.
         """
         target = Decimal(str(counted_quantity))
         if target < Decimal("0.00"):
@@ -132,11 +141,28 @@ class StockMovementService:
             if delta == Decimal("0.00"):
                 raise InvalidMovementError("Counted quantity matches current balance. No adjustment required.")
 
+            clean_category = (reason_category or AdjustmentReasonCategory.AUDIT).strip().upper()
+            if clean_category == AdjustmentReasonCategory.SOLD and delta > Decimal("0.00"):
+                raise InvalidMovementError("Adjustment reason 'Sold' cannot increase stock balance.")
+
             m_type = (
-                MovementType.POSITIVE_ADJUSTMENT
+                MovementType.ISSUE
+                if clean_category == AdjustmentReasonCategory.SOLD
+                else MovementType.POSITIVE_ADJUSTMENT
                 if delta > Decimal("0.00")
                 else MovementType.NEGATIVE_ADJUSTMENT
             )
+
+            note = (reason or "").strip()
+            if note.startswith(f"[{clean_category}]"):
+                formatted_reason = note
+            elif note:
+                formatted_reason = f"[{clean_category}] {note}"
+            else:
+                formatted_reason = f"[{clean_category}] Cycle count adjustment ({delta:+.2f})"
+
+            # Ensure formatted ledger reason never exceeds StockMovement.reason max_length (255)
+            formatted_reason = formatted_reason[:255]
 
             return cls.record_movement(
                 product=product,
@@ -144,7 +170,7 @@ class StockMovementService:
                 movement_type=m_type,
                 quantity=delta,
                 actor=actor,
-                reason=reason or f"Cycle count discrepancy: {delta} units",
+                reason=formatted_reason,
             )
 
     @classmethod

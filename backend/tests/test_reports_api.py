@@ -10,7 +10,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from apps.catalog.models import Category, Product
-from apps.inventory.models import Location
+from apps.inventory.models import Location, MovementType
 from apps.inventory.services import StockMovementService
 from apps.purchasing.models import PurchaseOrder, PurchaseOrderItem, Supplier
 
@@ -144,7 +144,108 @@ def test_dashboard_summary_metrics(auth_client, sample_inventory_setup):
     assert len(data["recent_purchase_orders"]) == 1
     assert data["recent_purchase_orders"][0]["order_reference"] == "PO-TEST-001"
     assert Decimal(data["recent_purchase_orders"][0]["total_amount"]) == Decimal("125.0000")
+    assert Decimal(data["monthly_realized_revenue"]) == Decimal("0.00")
+    assert Decimal(data["weekly_realized_revenue"]) == Decimal("0.00")
+    assert Decimal(data["monthly_realized_profit"]) == Decimal("0.00")
     assert "server_timestamp" in data
+
+
+@pytest.mark.django_db
+def test_dashboard_summary_with_realized_revenue_and_categorized_adjustment(auth_client, sample_inventory_setup):
+    client, user = auth_client
+    p1 = sample_inventory_setup["p1"]
+    location = sample_inventory_setup["location"]
+
+    # Sell 5 units of p1 via categorized adjustment (20 -> 15 units)
+    adj_sold = StockMovementService.adjust_stock(
+        product=p1,
+        location=location,
+        counted_quantity=Decimal("15.00"),
+        actor=user,
+        reason="Direct counter sales",
+        reason_category="SOLD",
+    )
+    assert adj_sold.movement_type == MovementType.ISSUE
+    assert adj_sold.quantity == Decimal("-5.00")
+    assert adj_sold.reason == "[SOLD] Direct counter sales"
+
+    # Query summary report endpoint
+    response = client.get("/api/v1/reports/summary/")
+    assert response.status_code == status.HTTP_200_OK
+
+    data = response.json()
+    # 5 units * selling_price (18.00) = 90.00 realized revenue
+    assert Decimal(data["monthly_realized_revenue"]) == Decimal("90.00")
+    assert Decimal(data["weekly_realized_revenue"]) == Decimal("90.00")
+    # Cost = 5 * purchase_cost (12.50) = 62.50; Profit = 90.00 - 62.50 = 27.50
+    assert Decimal(data["monthly_realized_profit"]) == Decimal("27.50")
+    # Potential revenue remaining: (15 * 18.00) + (5 * 8.00) = 270 + 40 = 310.00
+    assert Decimal(data["potential_revenue"]) == Decimal("310.00")
+
+    # Verify API adjustment validation:
+    # 1. Other requires non-empty reason
+    res_err_other = client.post(
+        "/api/v1/inventory/adjustments/",
+        {
+            "product": str(p1.id),
+            "location": str(location.id),
+            "counted_quantity": "14.00",
+            "reason_category": "OTHER",
+            "reason": "   ",
+        },
+        format="json",
+    )
+    assert res_err_other.status_code == status.HTTP_400_BAD_REQUEST
+    assert "reason" in str(res_err_other.data)
+
+    # 2. Sold cannot increase stock
+    res_err_sold_inc = client.post(
+        "/api/v1/inventory/adjustments/",
+        {
+            "product": str(p1.id),
+            "location": str(location.id),
+            "counted_quantity": "25.00",
+            "reason_category": "SOLD",
+            "reason": "Invalid upward sale",
+        },
+        format="json",
+    )
+    assert res_err_sold_inc.status_code == status.HTTP_400_BAD_REQUEST
+    assert "cannot increase stock balance" in str(res_err_sold_inc.data)
+
+    # 3. Long reason (245 chars + category prefix) does not crash with 500 length error
+    long_reason = "Audit discrepancy verified by external logistics auditor " * 4  # ~230 chars
+    res_long = client.post(
+        "/api/v1/inventory/adjustments/",
+        {
+            "product": str(p1.id),
+            "location": str(location.id),
+            "counted_quantity": "14.00",
+            "reason_category": "AUDIT",
+            "reason": long_reason,
+        },
+        format="json",
+    )
+    assert res_long.status_code == status.HTTP_201_CREATED
+    assert len(res_long.data["movement"]["reason"]) <= 255
+
+    # 4. Past movements (prior to month_start) must be excluded from MTD realized revenue
+    p2 = sample_inventory_setup["p2"]
+    from django.utils import timezone
+    past_date = timezone.localtime(timezone.now()).replace(day=1) - timezone.timedelta(days=10)
+    StockMovementService.record_movement(
+        product=p2,
+        location=location,
+        movement_type=MovementType.ISSUE,
+        quantity=Decimal("-2.00"),
+        actor=user,
+        reason="Prior month sale",
+        effective_at=past_date,
+    )
+    # Re-query: monthly_realized_revenue must still be 90.00, NOT include the prior month's 16.00
+    res_recheck = client.get("/api/v1/reports/summary/")
+    assert res_recheck.status_code == status.HTTP_200_OK
+    assert Decimal(res_recheck.json()["monthly_realized_revenue"]) == Decimal("90.00")
 
 
 @pytest.mark.django_db

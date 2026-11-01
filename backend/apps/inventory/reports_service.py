@@ -8,11 +8,11 @@ from decimal import Decimal
 from typing import Any
 
 from django.db.models import F, Sum
-from django.db.models.functions import Coalesce
+from django.db.models.functions import Abs, Coalesce
 from django.utils import timezone
 
 from apps.catalog.models import Product
-from apps.inventory.models import StockBalance, StockMovement
+from apps.inventory.models import MovementType, StockBalance, StockMovement
 from apps.purchasing.models import PurchaseOrder, PurchaseOrderItem, PurchaseOrderStatus
 
 
@@ -65,6 +65,37 @@ class ReportsService:
         )
         incoming_quantity = str((incoming_agg["qty"] or Decimal("0.00")).quantize(Decimal("0.01")))
         incoming_cost = str((incoming_agg["cost"] or Decimal("0.00")).quantize(Decimal("0.01")))
+
+        # 3c-2. Realized sales revenue, COGS, and gross profit from actual movements (MTD & WTD)
+        # Convert to configured local timezone (e.g. Asia/Manila) before computing calendar boundaries
+        local_now = timezone.localtime(timezone.now())
+        month_start = local_now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        week_start = (local_now - timezone.timedelta(days=local_now.weekday())).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+
+        month_issues = StockMovement.objects.filter(
+            movement_type=MovementType.ISSUE,
+            effective_at__gte=month_start,
+        )
+        month_agg = month_issues.aggregate(
+            rev=Sum(Abs(F("quantity")) * F("product__selling_price")),
+            cogs=Sum(Abs(F("quantity")) * F("unit_cost")),
+        )
+        raw_mtd_rev = month_agg["rev"] or Decimal("0.0000")
+        raw_mtd_cogs = month_agg["cogs"] or Decimal("0.0000")
+        monthly_realized_revenue = str(raw_mtd_rev.quantize(Decimal("0.01")))
+        monthly_realized_profit = str((raw_mtd_rev - raw_mtd_cogs).quantize(Decimal("0.01")))
+
+        week_issues = StockMovement.objects.filter(
+            movement_type=MovementType.ISSUE,
+            effective_at__gte=week_start,
+        )
+        week_agg = week_issues.aggregate(
+            rev=Sum(Abs(F("quantity")) * F("product__selling_price")),
+        )
+        raw_wtd_rev = week_agg["rev"] or Decimal("0.0000")
+        weekly_realized_revenue = str(raw_wtd_rev.quantize(Decimal("0.01")))
 
         # 3d. Valuation breakdown by warehouse location
         loc_balances = (
@@ -175,6 +206,9 @@ class ReportsService:
             "potential_revenue": potential_revenue,
             "projected_margin": projected_margin,
             "margin_percentage": margin_percentage,
+            "monthly_realized_revenue": monthly_realized_revenue,
+            "weekly_realized_revenue": weekly_realized_revenue,
+            "monthly_realized_profit": monthly_realized_profit,
             "incoming_cost": incoming_cost,
             "incoming_quantity": incoming_quantity,
             "valuation_by_location": valuation_by_location,
