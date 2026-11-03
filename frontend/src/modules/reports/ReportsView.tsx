@@ -8,7 +8,6 @@ import {
   Calendar,
   CheckCircle2,
   History,
-  Info,
   Layers,
   Loader2,
   Percent,
@@ -16,6 +15,7 @@ import {
   ShoppingCart,
   TrendingUp,
 } from 'lucide-react'
+import { MetricInfoGuide } from '@/components/ui/metric-info-guide'
 import { useQuery } from '@tanstack/react-query'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -138,13 +138,17 @@ export function ReportsView() {
       {/* 1. Executive Financial KPI Overview Bar */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {/* Total In-Stock Cost Valuation */}
-        <Card className="border-slate-200 shadow-2xs">
+        <Card className="border-slate-200 shadow-2xs relative has-[[aria-expanded=true]]:z-40">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div className="flex items-center gap-1.5">
               <CardTitle className="text-sm font-medium text-slate-600">Total Stock Valuation</CardTitle>
-              <span title="Formula: sum(on-hand units × purchase cost). Represents physical capital tied up in stock.">
-                <Info className="h-3.5 w-3.5 text-slate-400 hover:text-slate-600 cursor-help" />
-              </span>
+              <MetricInfoGuide
+                title="Total Stock Valuation"
+                formula="∑ (On-Hand Units × Unit Purchase Cost)"
+                description="Represents physical liquid capital tied up in inventory evaluated at baseline acquisition cost."
+                note="Aggregated across all active facilities."
+                align="left"
+              />
             </div>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-700 font-bold font-mono text-sm">
               ₱
@@ -165,13 +169,17 @@ export function ReportsView() {
         </Card>
 
         {/* Potential Retail Revenue */}
-        <Card className="border-slate-200 shadow-2xs">
+        <Card className="border-slate-200 shadow-2xs relative has-[[aria-expanded=true]]:z-40">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div className="flex items-center gap-1.5">
               <CardTitle className="text-sm font-medium text-slate-600">Potential Revenue</CardTitle>
-              <span title="Formula: sum(on-hand units × catalog selling price). Estimated gross turnover upon full inventory liquidation.">
-                <Info className="h-3.5 w-3.5 text-slate-400 hover:text-slate-600 cursor-help" />
-              </span>
+              <MetricInfoGuide
+                title="Potential Retail Revenue"
+                formula="∑ (On-Hand Units × Catalog Selling Price)"
+                description="Estimated gross retail turnover upon full liquidation of current on-hand inventory."
+                note="Derived from active catalog retail prices."
+                align="left"
+              />
             </div>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
               <TrendingUp className="h-4 w-4" />
@@ -192,13 +200,17 @@ export function ReportsView() {
         </Card>
 
         {/* Projected Gross Margin */}
-        <Card className="border-slate-200 shadow-2xs">
+        <Card className="border-slate-200 shadow-2xs relative has-[[aria-expanded=true]]:z-40">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div className="flex items-center gap-1.5">
               <CardTitle className="text-sm font-medium text-slate-600">Projected Margin</CardTitle>
-              <span title="Gross Margin % = (Margin ÷ Potential Revenue) × 100. Cost Markup % = (Margin ÷ In-Stock Cost) × 100.">
-                <Info className="h-3.5 w-3.5 text-slate-400 hover:text-slate-600 cursor-help" />
-              </span>
+              <MetricInfoGuide
+                title="Projected Profit Margin & Markup"
+                formula="Margin % = ((Revenue − Cost) ÷ Revenue) × 100"
+                description="Gross Margin measures profit as a percentage of retail turnover. Cost Markup measures the pricing premium added on top of unit acquisition cost."
+                note="Cost Markup % = ((Revenue − Cost) ÷ Cost) × 100"
+                align="center"
+              />
             </div>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
               <Percent className="h-4 w-4" />
@@ -244,13 +256,17 @@ export function ReportsView() {
         </Card>
 
         {/* Monthly Realized Revenue & Gross Profit */}
-        <Card className="border-slate-200 shadow-2xs">
+        <Card className="border-slate-200 shadow-2xs relative has-[[aria-expanded=true]]:z-40">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div className="flex items-center gap-1.5">
               <CardTitle className="text-sm font-medium text-slate-600">Monthly Realized Sales</CardTitle>
-              <span title="Recognized actual sales from customer sale (SOLD) dispatches this month. Gross Profit = Sales Revenue − COGS.">
-                <Info className="h-3.5 w-3.5 text-slate-400 hover:text-slate-600 cursor-help" />
-              </span>
+              <MetricInfoGuide
+                title="Monthly Realized Sales"
+                formula="∑ (Dispatched Qty × Unit Selling Price)"
+                description="Gross revenue earned from customer purchase dispatches (categorized as SOLD) logged in the current calendar month."
+                note="Realized Gross Profit = Sales Revenue − Cost of Goods Sold."
+                align="center"
+              />
             </div>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
               <ShoppingCart className="h-4 w-4" />
@@ -293,13 +309,16 @@ export function ReportsView() {
         </Card>
 
         {/* Active Physical Inventory Units & Supply Pipeline */}
-        <Card className="border-slate-200 shadow-2xs">
+        <Card className="border-slate-200 shadow-2xs relative has-[[aria-expanded=true]]:z-40">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div className="flex items-center gap-1.5">
               <CardTitle className="text-sm font-medium text-slate-600">Physical Stock Units</CardTitle>
-              <span title="Total physical unit count across all warehouses plus units committed in open purchase orders.">
-                <Info className="h-3.5 w-3.5 text-slate-400 hover:text-slate-600 cursor-help" />
-              </span>
+              <MetricInfoGuide
+                title="Physical Stock Units & PO Pipeline"
+                formula="On-Hand Units + Incoming Purchase Order Units"
+                description="Total physical inventory items across storage facilities combined with units committed in pending purchase orders."
+                align="right"
+              />
             </div>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
               <Boxes className="h-4 w-4" />

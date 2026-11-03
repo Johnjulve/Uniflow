@@ -19,8 +19,8 @@ import {
   Layers,
   ArrowRight,
   Percent,
-  Info,
 } from 'lucide-react'
+import { MetricInfoGuide } from '@/components/ui/metric-info-guide'
 import { useSync } from '@/offline/useSync'
 import { cn, formatCurrency } from '@/lib/utils'
 import { fetchProducts } from '@/modules/catalog/api'
@@ -121,15 +121,19 @@ export function DashboardOverview() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {/* Total Cost of In-Stock */}
         <Card
-          className="cursor-pointer border-slate-200 hover:border-blue-400 hover:shadow-xs transition-all"
+          className="cursor-pointer border-slate-200 hover:border-blue-400 hover:shadow-xs transition-all relative has-[[aria-expanded=true]]:z-40"
           onClick={() => navigate('/inventory')}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div className="flex items-center gap-1.5">
               <CardTitle className="text-sm font-medium text-slate-600">Total In-Stock Cost</CardTitle>
-              <span title="Formula: sum(on-hand quantity × unit purchase cost) across all active warehouse locations.">
-                <Info className="h-3.5 w-3.5 text-slate-400 hover:text-slate-600 cursor-help" />
-              </span>
+              <MetricInfoGuide
+                title="Total In-Stock Valuation"
+                formula="∑ (On-Hand Quantity × Unit Purchase Cost)"
+                description="Aggregated acquisition capital currently invested in physical inventory across all active warehouse locations."
+                note="Derived from baseline item purchase costs."
+                align="left"
+              />
             </div>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-700 font-bold font-mono text-sm">
               ₱
@@ -151,15 +155,19 @@ export function DashboardOverview() {
 
         {/* Potential Retail Revenue */}
         <Card
-          className="cursor-pointer border-slate-200 hover:border-emerald-400 hover:shadow-xs transition-all"
+          className="cursor-pointer border-slate-200 hover:border-emerald-400 hover:shadow-xs transition-all relative has-[[aria-expanded=true]]:z-40"
           onClick={() => navigate('/catalog')}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div className="flex items-center gap-1.5">
               <CardTitle className="text-sm font-medium text-slate-600">Potential Revenue</CardTitle>
-              <span title="Formula: sum(on-hand quantity × catalog selling price) across all active inventory items.">
-                <Info className="h-3.5 w-3.5 text-slate-400 hover:text-slate-600 cursor-help" />
-              </span>
+              <MetricInfoGuide
+                title="Potential Retail Revenue"
+                formula="∑ (On-Hand Quantity × Catalog Selling Price)"
+                description="Projected gross sales revenue upon complete sell-through of all physical on-hand stock."
+                note="Calculated using current active catalog retail prices."
+                align="left"
+              />
             </div>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
               <TrendingUp className="h-4 w-4" />
@@ -181,15 +189,19 @@ export function DashboardOverview() {
 
         {/* Monthly Realized Revenue */}
         <Card
-          className="cursor-pointer border-slate-200 hover:border-emerald-500 hover:shadow-xs transition-all"
+          className="cursor-pointer border-slate-200 hover:border-emerald-500 hover:shadow-xs transition-all relative has-[[aria-expanded=true]]:z-40"
           onClick={() => navigate('/inventory')}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div className="flex items-center gap-1.5">
               <CardTitle className="text-sm font-medium text-slate-600">Monthly Realized Revenue</CardTitle>
-              <span title="Formula: Recognized sales from Customer Sale (SOLD) stock movements this month. Realized Gross Margin = Sales Revenue − Cost of Goods Sold.">
-                <Info className="h-3.5 w-3.5 text-slate-400 hover:text-slate-600 cursor-help" />
-              </span>
+              <MetricInfoGuide
+                title="Monthly Realized Sales"
+                formula="∑ (Dispatched Qty × Unit Selling Price)"
+                description="Gross revenue earned from customer purchase dispatches (categorized as SOLD) logged in the current calendar month."
+                note="Realized Gross Profit = Sales Revenue − Cost of Goods Sold."
+                align="center"
+              />
             </div>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
               <ShoppingCart className="h-4 w-4" />
@@ -234,15 +246,19 @@ export function DashboardOverview() {
 
         {/* Projected Gross Margin */}
         <Card
-          className="cursor-pointer border-slate-200 hover:border-indigo-400 hover:shadow-xs transition-all"
+          className="cursor-pointer border-slate-200 hover:border-indigo-400 hover:shadow-xs transition-all relative has-[[aria-expanded=true]]:z-40"
           onClick={() => navigate('/reports')}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div className="flex items-center gap-1.5">
               <CardTitle className="text-sm font-medium text-slate-600">Projected Margin</CardTitle>
-              <span title="Formula: Gross Margin % = (Potential Revenue − In-Stock Cost) ÷ Potential Revenue. Markup % = (Potential Revenue − In-Stock Cost) ÷ In-Stock Cost.">
-                <Info className="h-3.5 w-3.5 text-slate-400 hover:text-slate-600 cursor-help" />
-              </span>
+              <MetricInfoGuide
+                title="Projected Profit Margin & Markup"
+                formula="Margin % = ((Revenue − Cost) ÷ Revenue) × 100"
+                description="Gross Margin measures profit as a percentage of retail turnover. Cost Markup measures the pricing premium added on top of unit acquisition cost."
+                note="Cost Markup % = ((Revenue − Cost) ÷ Cost) × 100"
+                align="center"
+              />
             </div>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
               <Percent className="h-4 w-4" />
@@ -286,15 +302,18 @@ export function DashboardOverview() {
 
         {/* Incoming Procurement Pipeline */}
         <Card
-          className="cursor-pointer border-slate-200 hover:border-amber-400 hover:shadow-xs transition-all"
+          className="cursor-pointer border-slate-200 hover:border-amber-400 hover:shadow-xs transition-all relative has-[[aria-expanded=true]]:z-40"
           onClick={() => navigate('/purchasing')}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div className="flex items-center gap-1.5">
               <CardTitle className="text-sm font-medium text-slate-600">Incoming Inbound Value</CardTitle>
-              <span title="Formula: sum(remaining ordered quantity × purchase unit cost) across all open DRAFT, SUBMITTED, and PARTIALLY_RECEIVED purchase orders.">
-                <Info className="h-3.5 w-3.5 text-slate-400 hover:text-slate-600 cursor-help" />
-              </span>
+              <MetricInfoGuide
+                title="Incoming Procurement Pipeline"
+                formula="∑ (Pending Ordered Qty × Unit Purchase Cost)"
+                description="Total financial commitment for stock on open purchase orders (Draft, Submitted, or Partially Received) awaiting warehouse intake."
+                align="right"
+              />
             </div>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
               <Truck className="h-4 w-4" />
